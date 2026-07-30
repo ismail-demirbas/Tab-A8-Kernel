@@ -1,0 +1,84 @@
+make: Entering directory '/home/ismail/TabA8Wifi'
+make[1]: Entering directory '/home/ismail/TabA8Wifi/out'
+  HOSTCC  scripts/basic/fixdep
+  GEN     ./Makefile
+  HOSTCC  scripts/kconfig/conf.o
+  SHIPPED scripts/kconfig/zconf.tab.c
+  SHIPPED scripts/kconfig/zconf.lex.c
+  HOSTCC  scripts/kconfig/zconf.tab.o
+In file included from scripts/kconfig/zconf.tab.c:2470:
+In function ‘dep_stack_insert’,
+    inlined from ‘sym_check_print_recursive’ at ../scripts/kconfig/symbol.c:1123:3,
+    inlined from ‘sym_check_deps’ at ../scripts/kconfig/symbol.c:1300:3:
+../scripts/kconfig/symbol.c:1099:19: warning: storing the address of local variable ‘cv_stack’ in ‘check_top’ [-Wdangling-pointer=]
+ 1099 |         check_top = stack;
+      |         ~~~~~~~~~~^~~~~~~
+../scripts/kconfig/symbol.c: In function ‘sym_check_deps’:
+../scripts/kconfig/symbol.c:1120:26: note: ‘cv_stack’ declared here
+ 1120 |         struct dep_stack cv_stack;
+      |                          ^~~~~~~~
+../scripts/kconfig/symbol.c:1090:4: note: ‘check_top’ declared here
+ 1090 | } *check_top;
+      |    ^~~~~~~~~
+  HOSTLD  scripts/kconfig/conf
+arch/arm64/Kconfig:139:warning: ignoring type redefinition of 'TARGET_UMS9230_4H10' from 'boolean' to 'string'
+arch/arm64/Kconfig:143:warning: ignoring type redefinition of 'TARGET_UMS512_1H10' from 'boolean' to 'string'
+arch/arm64/Kconfig:148:warning: ignoring type redefinition of 'TARGET_UMS512_25C10' from 'boolean' to 'string'
+arch/arm64/Kconfig:154:warning: ignoring type redefinition of 'UMS512_25C10_CHARGER' from 'boolean' to 'string'
+arch/arm64/Kconfig:160:warning: ignoring type redefinition of 'UMS_25C10_VIB' from 'boolean' to 'string'
+arch/arm64/Kconfig:165:warning: ignoring type redefinition of 'SENSOR_DYNAMIC_MEMORY' from 'boolean' to 'string'
+drivers/misc/Kconfig:569:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:5:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:6:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:7:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:8:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:8:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:15:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:16:warning: ignoring unsupported character ''
+drivers/misc/hs03_sar/Kconfig:17:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Kconfig:1314:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:8:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:14:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:19:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:28:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:34:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:40:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:46:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:54:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:60:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:66:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:72:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:78:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:84:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:90:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:96:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:102:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:108:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:116:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:121:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:127:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Tab_A8/hxchipset/Kconfig:133:warning: ignoring unsupported character '+'
+drivers/input/touchscreen/Kconfig:1317:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:5:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:6:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:7:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:8:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:8:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:12:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:13:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:14:warning: ignoring unsupported character ''
+drivers/input/touchscreen/Tab_A8/focaltech_touch/Kconfig:15:warning: ignoring unsupported character ''
+drivers/samsung/debug/Kconfig:4:warning: ignoring type redefinition of 'SEC_DEBUG' from 'tristate' to 'boolean'
+drivers/input/touchscreen/Tab_A7_Unisoc/hxchipset/Kconfig:17:warning: choice value used outside its choice group
+drivers/input/touchscreen/Tab_A7_Unisoc/hxchipset/Kconfig:23:warning: choice value used outside its choice group
+drivers/samsung/debug/Kconfig:30:warning: defaults for choice values not supported
+drivers/samsung/debug/Kconfig:36:warning: defaults for choice values not supported
+arch/arm64/configs/gta8wifi_eur_open_defconfig:5100:warning: override: reassigning to symbol KPROBES
+arch/arm64/configs/gta8wifi_eur_open_defconfig:5101:warning: override: reassigning to symbol HAVE_KPROBES
+arch/arm64/configs/gta8wifi_eur_open_defconfig:5102:warning: override: reassigning to symbol KALLSYMS
+arch/arm64/configs/gta8wifi_eur_open_defconfig:5103:warning: override: reassigning to symbol KALLSYMS_ALL
+#
+# configuration written to .config
+#
+make[1]: Leaving directory '/home/ismail/TabA8Wifi/out'
+make: Leaving directory '/home/ismail/TabA8Wifi'
