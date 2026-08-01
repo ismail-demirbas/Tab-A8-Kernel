@@ -549,6 +549,19 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->data = data;
 	devfreq->nb.notifier_call = devfreq_notifier_call;
 
+	/* Performans ayari: GPU icin kalici taban frekans + hizli tepki.
+	 * mali_gondul kapali kaynakli modul oldugu icin DTS sprd,dvfs-range-min
+	 * alani okunmuyor; framework seviyesinde burada zorluyoruz. */
+	if (dev && dev_name(dev) && strstr(dev_name(dev), "gpu")) {
+		static struct devfreq_simple_ondemand_data gpu_dfso_data;
+
+		devfreq->min_freq = 512000000;
+		gpu_dfso_data.upthreshold = 63;
+		gpu_dfso_data.downdifferential = 10;
+		devfreq->data = &gpu_dfso_data;
+		data = &gpu_dfso_data;
+	}
+
 	if (!devfreq->profile->max_state && !devfreq->profile->freq_table) {
 		mutex_unlock(&devfreq->lock);
 		devfreq_set_freq_table(devfreq);

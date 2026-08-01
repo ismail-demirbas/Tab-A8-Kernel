@@ -619,12 +619,20 @@ static void wakeup_source_report_event(struct wakeup_source *ws, bool hard)
  *
  * It is safe to call this function from interrupt context.
  */
+#ifdef CONFIG_BOEFFLA_WL_BLOCKER
+extern bool is_wakelock_blocked(const char *name);
+#endif
+
 void __pm_stay_awake(struct wakeup_source *ws)
 {
 	unsigned long flags;
 
 	if (!ws)
 		return;
+#ifdef CONFIG_BOEFFLA_WL_BLOCKER
+	if (ws->name && is_wakelock_blocked(ws->name))
+		return;
+#endif
 
 	spin_lock_irqsave(&ws->lock, flags);
 
@@ -813,6 +821,10 @@ void pm_wakeup_ws_event(struct wakeup_source *ws, unsigned int msec, bool hard)
 
 	if (!ws)
 		return;
+#ifdef CONFIG_BOEFFLA_WL_BLOCKER
+	if (ws->name && is_wakelock_blocked(ws->name))
+		return;
+#endif
 
 	spin_lock_irqsave(&ws->lock, flags);
 

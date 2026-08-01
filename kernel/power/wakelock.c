@@ -22,6 +22,92 @@
 
 #include "power.h"
 
+#ifdef CONFIG_BOEFFLA_WL_BLOCKER
+#include <linux/miscdevice.h>
+#include <linux/string.h>
+
+/*
+ * Varsayilan engelleme listesi: WCN (WiFi/BT) SDIO wakelock'lari.
+ * sdiohal_tx/rx/scan_wakelock bu Unisoc/Spreadtrum tabletinin gercek
+ * WCN suruculerinden (drivers/misc/sprdwcn) geliyor.
+ */
+static char bwb_wakelocks[512] =
+"sdiohal_tx_wakelock;sdiohal_rx_wakelock;sdiohal_scan_wakelock";
+
+static DEFINE_SPINLOCK(bwb_lock);
+
+static ssize_t bwb_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	ssize_t ret;
+	unsigned long flags;
+	spin_lock_irqsave(&bwb_lock, flags);
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", bwb_wakelocks);
+	spin_unlock_irqrestore(&bwb_lock, flags);
+	return ret;
+}
+
+static ssize_t bwb_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	unsigned long flags;
+	if (count > sizeof(bwb_wakelocks) - 1)
+		return -EINVAL;
+	spin_lock_irqsave(&bwb_lock, flags);
+	strncpy(bwb_wakelocks, buf, sizeof(bwb_wakelocks) - 1);
+	bwb_wakelocks[sizeof(bwb_wakelocks) - 1] = '\0';
+	spin_unlock_irqrestore(&bwb_lock, flags);
+	return count;
+}
+static DEVICE_ATTR(wakelock_blocker, 0644, bwb_show, bwb_store);
+
+static struct miscdevice bwb_misc_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name  = "boeffla_wakelock_blocker",
+};
+
+static int __init bwb_init(void)
+{
+	int ret;
+
+	ret = misc_register(&bwb_misc_dev);
+	if (ret)
+		return ret;
+
+	ret = device_create_file(bwb_misc_dev.this_device,
+				 &dev_attr_wakelock_blocker);
+	if (ret)
+		misc_deregister(&bwb_misc_dev);
+
+	return ret;
+}
+device_initcall(bwb_init);
+
+bool is_wakelock_blocked(const char *name)
+{
+	char *match, *str;
+	size_t name_len = strlen(name);
+	bool result = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bwb_lock, flags);
+	str = bwb_wakelocks;
+	while ((match = strstr(str, name)) != NULL) {
+		bool left_ok  = (match == bwb_wakelocks) || (*(match - 1) == ';');
+		bool right_ok = (*(match + name_len) == ';') ||
+				(*(match + name_len) == '\0') ||
+				(*(match + name_len) == '\n');
+		if (left_ok && right_ok) {
+			result = true;
+			break;
+		}
+		str = match + 1;
+	}
+	spin_unlock_irqrestore(&bwb_lock, flags);
+	return result;
+}
+#endif /* CONFIG_BOEFFLA_WL_BLOCKER */
+
 static DEFINE_MUTEX(wakelocks_lock);
 
 struct wakelock {

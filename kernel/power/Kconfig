@@ -141,6 +141,13 @@ config PM_WAKELOCKS_GC
 	depends on PM_WAKELOCKS
 	default y
 
+config BOEFFLA_WL_BLOCKER
+	bool "Boeffla Wakelock Blocker Support"
+	depends on PM_WAKELOCKS
+	default y
+	help
+	  Allows blocking specific userspace wakelocks to save battery.
+
 config PM
 	bool "Device power management core functionality"
 	---help---

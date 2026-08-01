@@ -369,6 +369,15 @@ static int sprd_hardware_cpufreq_init(struct cpufreq_policy *policy)
 		goto free_table;
 	}
 
+	/* Performans ayari: cpuinfo.min_freq dahil kalici taban (Little 1040MHz, Big 1404MHz) */
+	if (data->cluster == 0) {
+		policy->min = 1144000;
+		policy->cpuinfo.min_freq = 1144000;
+	} else if (data->cluster == 1) {
+		policy->min = 1482000;
+		policy->cpuinfo.min_freq = 1482000;
+	}
+
 #ifdef CONFIG_SMP
 	/* CPUs in the same cluster share a clock and power domain */
 	cpumask_or(policy->cpus, policy->cpus,

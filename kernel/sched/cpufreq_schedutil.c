@@ -95,6 +95,23 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time,
 {
 	s64 delta_ns;
 
+	/* Lazy init: rate limitler set edilmediyse varsayilan pil degerlerini uygula */
+	if (unlikely(!sg_policy->min_rate_limit_ns && sg_policy->tunables)) {
+		unsigned int cpu = sg_policy->policy->cpu;
+		if (cpu >= 6) {
+			sg_policy->up_rate_delay_ns = 3000LL * NSEC_PER_USEC;
+			sg_policy->down_rate_delay_ns = 1000LL * NSEC_PER_USEC;
+			sg_policy->tunables->up_rate_limit_us = 3000;
+			sg_policy->tunables->down_rate_limit_us = 1000;
+		} else if (cpu < 6) {
+			sg_policy->up_rate_delay_ns = 500LL * NSEC_PER_USEC;
+			sg_policy->down_rate_delay_ns = 1000LL * NSEC_PER_USEC;
+			sg_policy->tunables->up_rate_limit_us = 500;
+			sg_policy->tunables->down_rate_limit_us = 1000;
+		}
+		sg_policy->min_rate_limit_ns = min(sg_policy->up_rate_delay_ns,
+						   sg_policy->down_rate_delay_ns);
+	}
 	/*
 	 * Since cpufreq_update_util() is called with rq->lock held for
 	 * the @target_cpu, our per-cpu data is fully serialized.
@@ -989,9 +1006,13 @@ static int sugov_init(struct cpufreq_policy *policy)
 		ret = -ENOMEM;
 		goto stop_kthread;
 	}
-
-	tunables->up_rate_limit_us = cpufreq_policy_transition_delay_us(policy) >> 1;
-	tunables->down_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
+	if (policy->cpu >= 6) {
+		tunables->up_rate_limit_us = 3000;
+		tunables->down_rate_limit_us = 1000;
+	} else {
+		tunables->up_rate_limit_us = 500;
+		tunables->down_rate_limit_us = 1000;
+	}
 
 	init_timer(&sg_policy->freq_margin_timer);
 	setup_timer(&sg_policy->freq_margin_timer, sugov_set_freq_margin,

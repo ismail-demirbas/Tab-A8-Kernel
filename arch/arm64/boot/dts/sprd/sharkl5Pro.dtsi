@@ -641,14 +641,14 @@
 					850000  800000    8    1
 					>;
 
-				sprd,dvfs-default = <0>;
+				sprd,dvfs-default = <2>;
 				sprd,qos = <&gpu_qos>;
-				sprd,dvfs-scene-extreme = <3>;
-				sprd,dvfs-scene-high = <2>;
-				sprd,dvfs-scene-medium = <1>;
-				sprd,dvfs-scene-low = <0>;
+				sprd,dvfs-scene-extreme = <4>;
+				sprd,dvfs-scene-high = <3>;
+				sprd,dvfs-scene-medium = <2>;
+				sprd,dvfs-scene-low = <2>;
 				sprd,dvfs-range-max = <4>;
-				sprd,dvfs-range-min = <0>;
+				sprd,dvfs-range-min = <2>;
 			};
 
 		};
