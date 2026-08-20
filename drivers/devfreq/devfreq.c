@@ -240,10 +240,19 @@ int update_devfreq(struct devfreq *devfreq)
 	if (!devfreq->governor)
 		return -EINVAL;
 
+	if (strstr(dev_name(&devfreq->dev), "gpu") || strstr(dev_name(devfreq->dev.parent), "gpu")) {
+		if (devfreq->min_freq < 512000000)
+			devfreq->min_freq = 512000000;
+	}
+
 	/* Reevaluate the proper frequency */
 	err = devfreq->governor->get_target_freq(devfreq, &freq);
 	if (err)
 		return err;
+
+	if ((strstr(dev_name(&devfreq->dev), "gpu") || strstr(dev_name(devfreq->dev.parent), "gpu")) && freq < 512000000) {
+		freq = 512000000;
+	}
 
 	/*
 	 * Adjust the frequency with user freq and QoS.

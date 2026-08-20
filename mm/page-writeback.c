@@ -84,7 +84,7 @@ int dirty_background_ratio;
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
 unsigned long dirty_background_bytes;
 #else
-unsigned long dirty_background_bytes = 25 * 1024 * 1024;
+unsigned long dirty_background_bytes = 100 * 1024 * 1024;
 #endif
 
 /*
@@ -109,7 +109,7 @@ int vm_dirty_ratio;
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
 unsigned long vm_dirty_bytes;
 #else
-unsigned long vm_dirty_bytes = 50 * 1024 * 1024;
+unsigned long vm_dirty_bytes = 200 * 1024 * 1024;
 #endif
 
 /*

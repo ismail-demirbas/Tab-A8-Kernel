@@ -99,15 +99,15 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time,
 	if (unlikely(!sg_policy->min_rate_limit_ns && sg_policy->tunables)) {
 		unsigned int cpu = sg_policy->policy->cpu;
 		if (cpu >= 6) {
-			sg_policy->up_rate_delay_ns = 3000LL * NSEC_PER_USEC;
+			sg_policy->up_rate_delay_ns = 100LL * NSEC_PER_USEC;
 			sg_policy->down_rate_delay_ns = 1000LL * NSEC_PER_USEC;
-			sg_policy->tunables->up_rate_limit_us = 3000;
+			sg_policy->tunables->up_rate_limit_us = 100;
 			sg_policy->tunables->down_rate_limit_us = 1000;
 		} else if (cpu < 6) {
-			sg_policy->up_rate_delay_ns = 500LL * NSEC_PER_USEC;
-			sg_policy->down_rate_delay_ns = 1000LL * NSEC_PER_USEC;
-			sg_policy->tunables->up_rate_limit_us = 500;
-			sg_policy->tunables->down_rate_limit_us = 1000;
+			sg_policy->up_rate_delay_ns = 100LL * NSEC_PER_USEC;
+			sg_policy->down_rate_delay_ns = 2000LL * NSEC_PER_USEC;
+			sg_policy->tunables->up_rate_limit_us = 100;
+			sg_policy->tunables->down_rate_limit_us = 2000;
 		}
 		sg_policy->min_rate_limit_ns = min(sg_policy->up_rate_delay_ns,
 						   sg_policy->down_rate_delay_ns);
@@ -1007,11 +1007,11 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto stop_kthread;
 	}
 	if (policy->cpu >= 6) {
-		tunables->up_rate_limit_us = 3000;
+		tunables->up_rate_limit_us = 100;
 		tunables->down_rate_limit_us = 1000;
-	} else {
-		tunables->up_rate_limit_us = 500;
-		tunables->down_rate_limit_us = 1000;
+		} else if (policy->cpu < 6) {
+		tunables->up_rate_limit_us = 100;
+		tunables->down_rate_limit_us = 2000;
 	}
 
 	init_timer(&sg_policy->freq_margin_timer);
