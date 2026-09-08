@@ -225,12 +225,27 @@ static int devfreq_notify_transition(struct devfreq *devfreq,
  * Note: Lock devfreq->lock before calling update_devfreq
  *	 This function is exported for governors.
  */
+struct devfreq *gpu_devfreq_ptr;
+EXPORT_SYMBOL(gpu_devfreq_ptr);
+extern atomic_t screen_off_freq;
+
+void gpu_devfreq_notify_screen_state(void)
+{
+	if (!gpu_devfreq_ptr)
+		return;
+	mutex_lock(&gpu_devfreq_ptr->lock);
+	update_devfreq(gpu_devfreq_ptr);
+	mutex_unlock(&gpu_devfreq_ptr->lock);
+}
+EXPORT_SYMBOL(gpu_devfreq_notify_screen_state);
+
 int update_devfreq(struct devfreq *devfreq)
 {
 	struct devfreq_freqs freqs;
 	unsigned long freq, cur_freq;
 	int err = 0;
 	u32 flags = 0;
+	unsigned long gpu_floor = atomic_read(&screen_off_freq) ? 384000000 : 614400000;
 
 	if (!mutex_is_locked(&devfreq->lock)) {
 		WARN(true, "devfreq->lock must be locked by the caller.\n");
@@ -240,9 +255,13 @@ int update_devfreq(struct devfreq *devfreq)
 	if (!devfreq->governor)
 		return -EINVAL;
 
-	if (strstr(dev_name(&devfreq->dev), "gpu") || strstr(dev_name(devfreq->dev.parent), "gpu")) {
-		if (devfreq->min_freq < 512000000)
-			devfreq->min_freq = 512000000;
+	{
+		const char *dfq_nm = dev_name(&devfreq->dev);
+		const char *dfq_parent_nm = devfreq->dev.parent ? dev_name(devfreq->dev.parent) : "";
+	
+		if (strstr(dfq_nm, "gpu") || strstr(dfq_parent_nm, "gpu")) {
+			devfreq->min_freq = gpu_floor;
+	}
 	}
 
 	/* Reevaluate the proper frequency */
@@ -250,8 +269,8 @@ int update_devfreq(struct devfreq *devfreq)
 	if (err)
 		return err;
 
-	if ((strstr(dev_name(&devfreq->dev), "gpu") || strstr(dev_name(devfreq->dev.parent), "gpu")) && freq < 512000000) {
-		freq = 512000000;
+	if ((strstr(dev_name(&devfreq->dev), "gpu") || (devfreq->dev.parent && strstr(dev_name(devfreq->dev.parent), "gpu"))) && freq < gpu_floor) {
+		freq = gpu_floor;
 	}
 
 	/*
@@ -558,17 +577,19 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->data = data;
 	devfreq->nb.notifier_call = devfreq_notifier_call;
 
-	/* Performans ayari: GPU icin kalici taban frekans + hizli tepki.
-	 * mali_gondul kapali kaynakli modul oldugu icin DTS sprd,dvfs-range-min
-	 * alani okunmuyor; framework seviyesinde burada zorluyoruz. */
 	if (dev && dev_name(dev) && strstr(dev_name(dev), "gpu")) {
-		static struct devfreq_simple_ondemand_data gpu_dfso_data;
+		struct devfreq_simple_ondemand_data *gpu_dfso_data;
 
-		devfreq->min_freq = 512000000;
-		gpu_dfso_data.upthreshold = 63;
-		gpu_dfso_data.downdifferential = 10;
-		devfreq->data = &gpu_dfso_data;
-		data = &gpu_dfso_data;
+		gpu_dfso_data = devm_kzalloc(dev, sizeof(*gpu_dfso_data), GFP_KERNEL);
+		if (gpu_dfso_data) {
+	
+			devfreq->min_freq = 614400000;
+			gpu_dfso_data->upthreshold = 63;
+			gpu_dfso_data->downdifferential = 10;
+			devfreq->data = gpu_dfso_data;
+			data = gpu_dfso_data;
+		}
+		gpu_devfreq_ptr = devfreq;
 	}
 
 	if (!devfreq->profile->max_state && !devfreq->profile->freq_table) {
@@ -646,6 +667,8 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	if (!devfreq)
 		return -EINVAL;
 
+	if (devfreq == gpu_devfreq_ptr)
+		gpu_devfreq_ptr = NULL;
 	device_unregister(&devfreq->dev);
 
 	return 0;

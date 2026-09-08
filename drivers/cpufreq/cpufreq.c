@@ -2508,6 +2508,13 @@ unlock:
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
+void cpu_freq_notify_screen_state(void)
+{
+	cpufreq_update_policy(0);
+	cpufreq_update_policy(6);
+}
+EXPORT_SYMBOL(cpu_freq_notify_screen_state);
+
 /*********************************************************************
  *               BOOST						     *
  *********************************************************************/

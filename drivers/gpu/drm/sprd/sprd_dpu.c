@@ -22,7 +22,8 @@
 #include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
 #include <linux/sprd_iommu.h>
-
+#include <linux/atomic.h>
+#include <linux/cpufreq.h>
 #include "sprd_drm.h"
 #include "sprd_dpu.h"
 #include "sprd_gem.h"
@@ -674,11 +675,15 @@ void sprd_dpu_resume(struct sprd_dpu *dpu)
 	DRM_INFO("dpu resume OK\n");
 }
 
+extern atomic_t screen_is_on;
+extern void screen_state_changed(int is_on);
+
 static void sprd_crtc_atomic_enable(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_state)
 {
 	struct sprd_dpu *dpu = crtc_to_dpu(crtc);
 	static bool is_enabled = true;
+	screen_state_changed(1);
 
 	DRM_INFO("%s()\n", __func__);
 
@@ -736,6 +741,7 @@ static void sprd_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct sprd_dpu *dpu = crtc_to_dpu(crtc);
 	struct drm_device *drm = dpu->crtc.dev;
+	screen_state_changed(0);
 
 	DRM_INFO("%s()\n", __func__);
 

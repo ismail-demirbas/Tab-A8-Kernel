@@ -472,10 +472,112 @@ int vfs_fsync(struct file *file, int datasync)
 }
 EXPORT_SYMBOL(vfs_fsync);
 
+#include <linux/atomic.h>
+#include <linux/devfreq.h>
+
+extern void gpu_devfreq_notify_screen_state(void);
+extern void cpu_freq_notify_screen_state(void);
+
+#include <linux/workqueue.h>
+#include <linux/cpufreq.h>
+
+atomic_t screen_is_on = ATOMIC_INIT(1);
+EXPORT_SYMBOL(screen_is_on);
+
+atomic_t screen_off_fsync = ATOMIC_INIT(0);
+EXPORT_SYMBOL(screen_off_fsync);
+
+atomic_t screen_off_freq = ATOMIC_INIT(0);
+EXPORT_SYMBOL(screen_off_freq);
+
+int fsync_manual_override = -1;
+EXPORT_SYMBOL(fsync_manual_override);
+int fsync_mode_min = -1;
+int fsync_mode_max = 1;
+
+int fsync_status_value;
+EXPORT_SYMBOL(fsync_status_value);
+
+int fsync_status_get(struct ctl_table *table, int write,
+		      void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (fsync_manual_override == 0)
+		fsync_status_value = 0;
+	else if (fsync_manual_override == 1)
+		fsync_status_value = 1;
+	else
+		fsync_status_value = atomic_read(&screen_off_fsync);
+
+	return proc_dointvec(table, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(fsync_status_get);
+
+#define SCREEN_OFF_FSYNC_DELAY_MS 10000
+#define SCREEN_OFF_FREQ_DELAY_MS  60000
+
+static void screen_off_fsync_work_fn(struct work_struct *work)
+{
+	atomic_set(&screen_off_fsync, 1);
+}
+static DECLARE_DELAYED_WORK(screen_off_fsync_work, screen_off_fsync_work_fn);
+
+static void screen_off_freq_work_fn(struct work_struct *work)
+{
+	atomic_set(&screen_off_freq, 1);
+	cpu_freq_notify_screen_state();
+	gpu_devfreq_notify_screen_state();
+}
+static DECLARE_DELAYED_WORK(screen_off_freq_work, screen_off_freq_work_fn);
+
+static void screen_state_apply_work_fn(struct work_struct *work);
+static DECLARE_WORK(screen_state_apply_work, screen_state_apply_work_fn);
+static atomic_t pending_screen_state = ATOMIC_INIT(1);
+
+static void screen_state_apply_work_fn(struct work_struct *work)
+{
+	int is_on = atomic_read(&pending_screen_state);
+
+	if (is_on) {
+		cancel_delayed_work_sync(&screen_off_fsync_work);
+		cancel_delayed_work_sync(&screen_off_freq_work);
+		atomic_set(&screen_off_fsync, 0);
+		atomic_set(&screen_off_freq, 0);
+		cpu_freq_notify_screen_state();
+		gpu_devfreq_notify_screen_state();
+	} else {
+		schedule_delayed_work(&screen_off_fsync_work,
+				      msecs_to_jiffies(SCREEN_OFF_FSYNC_DELAY_MS));
+		schedule_delayed_work(&screen_off_freq_work,
+				      msecs_to_jiffies(SCREEN_OFF_FREQ_DELAY_MS));
+	}
+}
+
+void screen_state_changed(int is_on)
+{
+	atomic_set(&screen_is_on, is_on);
+	atomic_set(&pending_screen_state, is_on);
+	schedule_work(&screen_state_apply_work);
+}
+EXPORT_SYMBOL(screen_state_changed);
+
 static int do_fsync(unsigned int fd, int datasync)
 {
 	struct fd f = fdget(fd);
 	int ret = -EBADF;
+	int skip;
+
+	if (fsync_manual_override == 0)
+		skip = 1;
+	else if (fsync_manual_override == 1)
+		skip = 0;
+	else
+		skip = !atomic_read(&screen_off_fsync);
+
+	if (skip) {
+		if (f.file)
+			fdput(f);
+		return 0;
+	}
 
 	if (f.file) {
 		ret = vfs_fsync(f.file, datasync);

@@ -369,13 +369,10 @@ static int sprd_hardware_cpufreq_init(struct cpufreq_policy *policy)
 		goto free_table;
 	}
 
-	/* Performans ayari: cpuinfo.min_freq dahil kalici taban (Little 1040MHz, Big 1404MHz) */
 	if (data->cluster == 0) {
-		policy->min = 1144000;
-		policy->cpuinfo.min_freq = 1144000;
+		policy->min = 1536000;
 	} else if (data->cluster == 1) {
-		policy->min = 1482000;
-		policy->cpuinfo.min_freq = 1482000;
+		policy->min = 1536000;
 	}
 
 #ifdef CONFIG_SMP
@@ -483,8 +480,21 @@ static int sprd_hardware_cpufreq_exit(struct cpufreq_policy *policy)
 	return ret;
 }
 
+extern atomic_t screen_off_freq;
+
 static int sprd_hardware_cpufreq_table_verify(struct cpufreq_policy *policy)
 {
+	struct sprd_cpufreq_driver_data *data = policy->driver_data;
+	unsigned int dyn_min;
+
+	if (data && atomic_read(&screen_off_freq)) {
+		dyn_min = (data->cluster == 0) ? 614400 : 1228800;
+	} else {
+		dyn_min = 1536000;
+	}
+
+	cpufreq_verify_within_limits(policy, dyn_min, policy->cpuinfo.max_freq);
+
 	return cpufreq_generic_frequency_table_verify(policy);
 }
 

@@ -106,6 +106,12 @@
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
+extern int fsync_manual_override;
+extern int fsync_mode_min;
+extern int fsync_mode_max;
+extern int fsync_status_get(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos);
+extern int fsync_status_value;
 extern int suid_dumpable;
 #ifdef CONFIG_COREDUMP
 extern int core_uses_pid;
@@ -319,6 +325,22 @@ static int max_extfrag_threshold = 1000;
 #endif
 
 static struct ctl_table kern_table[] = {
+	{
+		.procname	= "fsync_mode",
+		.data		= &fsync_manual_override,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &fsync_mode_min,
+		.extra2		= &fsync_mode_max,
+	},
+	{
+		.procname	= "fsync_status",
+		.data		= &fsync_status_value,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= fsync_status_get,
+	},
 	{
 		.procname	= "sched_child_runs_first",
 		.data		= &sysctl_sched_child_runs_first,
