@@ -202,6 +202,50 @@ vmlinux_link()
 	fi
 }
 
+# generate .BTF typeinfo from DWARF debuginfo
+# ${1} - vmlinux image (relinked without kallsyms/BTF, becomes input to pahole)
+# ${2} - file to dump raw BTF data into
+gen_btf()
+{
+	local pahole_ver
+
+	if ! [ -x "$(command -v ${PAHOLE})" ]; then
+		echo >&2 "BTF: ${1}: pahole (${PAHOLE}) is not available"
+		return 1
+	fi
+
+	pahole_ver=$(${PAHOLE} --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/')
+	if [ "${pahole_ver}" -lt "116" ]; then
+		echo >&2 "BTF: ${1}: pahole version $(${PAHOLE} --version) is too old, need at least v1.16"
+		return 1
+	fi
+
+	vmlinux_link "" ${1}
+
+	info "BTF" ${2}
+	${PAHOLE} -J ${1} --skip_encoding_btf_enum64 --skip_encoding_btf_decl_tag --skip_encoding_btf_type_tag
+
+	# Create ${2} which contains just .BTF section but no symbols. Add
+	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
+	# deletes all symbols including __start_BTF and __stop_BTF, which will
+	# be redefined in the linker script. Add 2>/dev/null to suppress GNU
+	# objcopy warnings: "empty loadable segment detected at ..."
+	${OBJCOPY} --only-section=.BTF --set-section-flags .BTF=alloc,readonly \
+		--strip-all ${1} ${2} 2>/dev/null
+
+	# ${1} (ld -shared ciktisi) ET_DYN tipinde; ld.lld final -shared linkte
+	# ET_DYN girdi dosyalarini paylasimli bagimlilik sanip section icerigini
+	# yok sayiyor (gorgul test: ET_DYN iken .BTF final vmlinux'ta 0 bayt,
+	# e_type ET_REL yapilinca dolu geliyor). e_type ofset 16, 2 bayt LE.
+	printf '\x01\x00' | dd of=${2} bs=1 seek=16 count=2 conv=notrunc status=none
+
+	btf_bin_sz=$(wc -c < ${2})
+	if [ "${btf_bin_sz}" -lt 4096 ]; then
+		echo >&2 "BTF: ${2} suspiciously small (${btf_bin_sz} bytes), .BTF embed basarisiz"
+		exit 1
+	fi
+}
+
 # Create ${2} .o file with all symbols from the ${1} object file
 kallsyms()
 {
@@ -330,6 +374,16 @@ if [ -n "${CONFIG_LTO_CLANG}" ]; then
 	recordmcount vmlinux.o
 fi
 
+btf_vmlinux_bin_o=""
+if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
+	btf_vmlinux_bin_o=.btf.vmlinux.bin.o
+	if ! gen_btf .tmp_vmlinux.btf $btf_vmlinux_bin_o ; then
+		echo >&2 "Failed to generate BTF for vmlinux"
+		echo >&2 "Try to disable CONFIG_DEBUG_INFO_BTF"
+		exit 1
+	fi
+fi
+
 kallsymso=""
 kallsyms_vmlinux=""
 if [ -n "${CONFIG_KALLSYMS}" ]; then
@@ -361,11 +415,11 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	kallsyms_vmlinux=.tmp_vmlinux2
 
 	# step 1
-	vmlinux_link "" .tmp_vmlinux1
+	vmlinux_link "${btf_vmlinux_bin_o}" .tmp_vmlinux1
 	kallsyms .tmp_vmlinux1 .tmp_kallsyms1.o
 
 	# step 2
-	vmlinux_link .tmp_kallsyms1.o .tmp_vmlinux2
+	vmlinux_link ".tmp_kallsyms1.o ${btf_vmlinux_bin_o}" .tmp_vmlinux2
 	kallsyms .tmp_vmlinux2 .tmp_kallsyms2.o
 
 	# step 3
@@ -376,14 +430,14 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 		kallsymso=.tmp_kallsyms3.o
 		kallsyms_vmlinux=.tmp_vmlinux3
 
-		vmlinux_link .tmp_kallsyms2.o .tmp_vmlinux3
+		vmlinux_link ".tmp_kallsyms2.o ${btf_vmlinux_bin_o}" .tmp_vmlinux3
 
 		kallsyms .tmp_vmlinux3 .tmp_kallsyms3.o
 	fi
 fi
 
 info LD vmlinux
-vmlinux_link "${kallsymso}" vmlinux
+vmlinux_link "${kallsymso} ${btf_vmlinux_bin_o}" vmlinux
 
 if [ -n "${CONFIG_BUILDTIME_EXTABLE_SORT}" ]; then
 	info SORTEX vmlinux

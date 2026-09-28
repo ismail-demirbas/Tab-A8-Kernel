@@ -488,7 +488,8 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
  * the end of the header data, ie. at skb->end.
  */
 struct skb_shared_info {
-	unsigned short	_unused;
+	__u8		meta_len;
+	__u8		_unused2;
 	unsigned char	nr_frags;
 	__u8		tx_flags;
 	unsigned short	gso_size;
@@ -3485,6 +3486,16 @@ static inline ktime_t net_timedelta(ktime_t t)
 static inline ktime_t net_invalid_timestamp(void)
 {
 	return 0;
+}
+
+static inline void skb_metadata_set(struct sk_buff *skb, u8 meta_len)
+{
+	skb_shinfo(skb)->meta_len = meta_len;
+}
+
+static inline void skb_metadata_clear(struct sk_buff *skb)
+{
+	skb_metadata_set(skb, 0);
 }
 
 struct sk_buff *skb_clone_sk(struct sk_buff *skb);

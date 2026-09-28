@@ -60,7 +60,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	u64 cost, n_buckets;
 	int err;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
 	if (attr->map_flags & ~STACK_CREATE_FLAG_MASK)
@@ -196,6 +196,75 @@ const struct bpf_func_proto bpf_get_stackid_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
+static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
+			    struct perf_callchain_entry *trace_in,
+			    void *buf, u32 size, u64 flags)
+{
+	u32 trace_nr, copy_len, elem_size, num_elem, max_depth;
+	bool user = flags & BPF_F_USER_STACK;
+	struct perf_callchain_entry *trace;
+	bool kernel = !user;
+	u32 skip = flags & BPF_F_SKIP_FIELD_MASK;
+	int err = -EINVAL;
+	u64 *ips;
+
+	if (unlikely(flags & ~(BPF_F_SKIP_FIELD_MASK | BPF_F_USER_STACK)))
+		goto clear;
+
+	elem_size = sizeof(u64);
+	if (unlikely(size % elem_size))
+		goto clear;
+
+	num_elem = size / elem_size;
+	max_depth = num_elem + skip;
+	if (sysctl_perf_event_max_stack < max_depth)
+		max_depth = sysctl_perf_event_max_stack;
+
+	if (trace_in)
+		trace = trace_in;
+	else
+		trace = get_perf_callchain(regs, 0, kernel, user, max_depth,
+					   false, false);
+	if (unlikely(!trace))
+		goto err_fault;
+
+	if (trace->nr < skip)
+		goto err_fault;
+
+	trace_nr = trace->nr - skip;
+	trace_nr = (trace_nr <= num_elem) ? trace_nr : num_elem;
+	copy_len = trace_nr * elem_size;
+
+	ips = trace->ip + skip;
+	memcpy(buf, ips, copy_len);
+
+	if (size > copy_len)
+		memset(buf + copy_len, 0, size - copy_len);
+	return copy_len;
+
+err_fault:
+	err = -EFAULT;
+clear:
+	memset(buf, 0, size);
+	return err;
+}
+
+BPF_CALL_4(bpf_get_stack, struct pt_regs *, regs, void *, buf, u32, size,
+	   u64, flags)
+{
+	return __bpf_get_stack(regs, NULL, NULL, buf, size, flags);
+}
+
+const struct bpf_func_proto bpf_get_stack_proto = {
+	.func		= bpf_get_stack,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
+};
+
 /* Called from eBPF program */
 static void *stack_map_lookup_elem(struct bpf_map *map, void *key)
 {
@@ -270,7 +339,7 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
-const struct bpf_map_ops stack_map_ops = {
+const struct bpf_map_ops stack_trace_map_ops = {
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,

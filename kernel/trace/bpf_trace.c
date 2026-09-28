@@ -9,10 +9,12 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/bpf.h>
+#include <linux/bpf-cgroup.h>
 #include <linux/bpf_perf_event.h>
 #include <linux/filter.h>
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
+#include <linux/btf.h>
 #include "trace.h"
 
 /**
@@ -91,6 +93,108 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+/* FAZ F-1 (5.10 govde niyeti, SAPMA: nofault API yok -> bu agacin
+ * set_fs tabanli mekanizmasi kullanildi):
+ * bpf_probe_read_kernel/_str = probe_kernel_read/strncpy_from_unsafe e
+ * ince sarmalayici (zaten kernel+user KERNEL_DS ile guvenli okuyor).
+ * bpf_probe_read_user = yeni access_ok+pagefault_disable+
+ * __copy_from_user_inatomic (probe_write_common ile simetrik).
+ * bpf_probe_read_user_str = strncpy_from_unsafe_user e sarmalayici. */
+static __always_inline int
+bpf_probe_read_user_common(void *dst, u32 size, const void __user *unsafe_ptr)
+{
+	int ret;
+
+	if (!access_ok(VERIFY_READ, unsafe_ptr, size)) {
+		memset(dst, 0, size);
+		return -EFAULT;
+	}
+
+	pagefault_disable();
+	ret = __copy_from_user_inatomic(dst, unsafe_ptr, size) ? -EFAULT : 0;
+	pagefault_enable();
+
+	if (unlikely(ret < 0))
+		memset(dst, 0, size);
+
+	return ret;
+}
+
+BPF_CALL_3(bpf_probe_read_user, void *, dst, u32, size,
+	   const void __user *, unsafe_ptr)
+{
+	return bpf_probe_read_user_common(dst, size, unsafe_ptr);
+}
+
+const struct bpf_func_proto bpf_probe_read_user_proto = {
+	.func		= bpf_probe_read_user,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_3(bpf_probe_read_user_str, void *, dst, u32, size,
+	   const void __user *, unsafe_ptr)
+{
+	int ret;
+
+	ret = strncpy_from_unsafe_user(dst, unsafe_ptr, size);
+	if (unlikely(ret < 0))
+		memset(dst, 0, size);
+	return ret;
+}
+
+const struct bpf_func_proto bpf_probe_read_user_str_proto = {
+	.func		= bpf_probe_read_user_str,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_3(bpf_probe_read_kernel, void *, dst, u32, size,
+	   const void *, unsafe_ptr)
+{
+	int ret;
+
+	ret = probe_kernel_read(dst, unsafe_ptr, size);
+	if (unlikely(ret < 0))
+		memset(dst, 0, size);
+	return ret;
+}
+
+const struct bpf_func_proto bpf_probe_read_kernel_proto = {
+	.func		= bpf_probe_read_kernel,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_3(bpf_probe_read_kernel_str, void *, dst, u32, size,
+	   const void *, unsafe_ptr)
+{
+	int ret;
+
+	ret = strncpy_from_unsafe(dst, unsafe_ptr, size);
+	if (unlikely(ret < 0))
+		memset(dst, 0, size);
+	return ret;
+}
+
+const struct bpf_func_proto bpf_probe_read_kernel_str_proto = {
+	.func		= bpf_probe_read_kernel_str,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 };
 
@@ -270,14 +374,14 @@ const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
 	return &bpf_trace_printk_proto;
 }
 
-BPF_CALL_2(bpf_perf_event_read, struct bpf_map *, map, u64, flags)
+static __always_inline int
+get_map_perf_counter(struct bpf_map *map, u64 flags,
+		     u64 *value, u64 *enabled, u64 *running)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	unsigned int cpu = smp_processor_id();
 	u64 index = flags & BPF_F_INDEX_MASK;
 	struct bpf_event_entry *ee;
-	u64 value = 0;
-	int err;
 
 	if (unlikely(flags & ~(BPF_F_INDEX_MASK)))
 		return -EINVAL;
@@ -290,7 +394,15 @@ BPF_CALL_2(bpf_perf_event_read, struct bpf_map *, map, u64, flags)
 	if (!ee)
 		return -ENOENT;
 
-	err = perf_event_read_local(ee->event, &value);
+	return perf_event_read_local(ee->event, value, enabled, running);
+}
+
+BPF_CALL_2(bpf_perf_event_read, struct bpf_map *, map, u64, flags)
+{
+	u64 value = 0;
+	int err;
+
+	err = get_map_perf_counter(map, flags, &value, NULL, NULL);
 	/*
 	 * this api is ugly since we miss [-22..-2] range of valid
 	 * counter values, but that's uapi
@@ -306,6 +418,33 @@ static const struct bpf_func_proto bpf_perf_event_read_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_perf_event_read_value, struct bpf_map *, map, u64, flags,
+	   struct bpf_perf_event_value *, buf, u32, size)
+{
+	int err = -EINVAL;
+
+	if (unlikely(size != sizeof(struct bpf_perf_event_value)))
+		goto clear;
+	err = get_map_perf_counter(map, flags, &buf->counter, &buf->enabled,
+				   &buf->running);
+	if (unlikely(err))
+		goto clear;
+	return 0;
+clear:
+	memset(buf, 0, size);
+	return err;
+}
+
+static const struct bpf_func_proto bpf_perf_event_read_value_proto = {
+	.func		= bpf_perf_event_read_value,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg4_type	= ARG_CONST_SIZE,
 };
 
 static DEFINE_PER_CPU(struct perf_sample_data, bpf_trace_sd);
@@ -438,6 +577,83 @@ static const struct bpf_func_proto bpf_current_task_under_cgroup_proto = {
 	.arg2_type      = ARG_ANYTHING,
 };
 
+struct send_signal_irq_work {
+	struct irq_work irq_work;
+	struct task_struct *task;
+	u32 sig;
+	bool group;
+};
+
+static DEFINE_PER_CPU(struct send_signal_irq_work, send_signal_work) = {
+	.irq_work = { .func = NULL },
+};
+
+static void do_bpf_send_signal(struct irq_work *entry)
+{
+	struct send_signal_irq_work *work;
+
+	work = container_of(entry, struct send_signal_irq_work, irq_work);
+	do_send_sig_info(work->sig, SEND_SIG_PRIV, work->task, work->group);
+	put_task_struct(work->task);
+}
+
+static int bpf_send_signal_common(u32 sig, bool group)
+{
+	struct send_signal_irq_work *work = NULL;
+
+	if (unlikely(current->flags & (PF_KTHREAD | PF_EXITING)))
+		return -EPERM;
+	if (unlikely(uaccess_kernel()))
+		return -EPERM;
+	if (unlikely(is_global_init(current)))
+		return -EPERM;
+
+	if (preempt_count() != 0 || irqs_disabled()) {
+		if (unlikely(!valid_signal(sig)))
+			return -EINVAL;
+
+		work = this_cpu_ptr(&send_signal_work);
+		if (work->irq_work.flags & IRQ_WORK_BUSY)
+			return -EBUSY;
+
+		if (!work->irq_work.func)
+			init_irq_work(&work->irq_work, do_bpf_send_signal);
+
+		work->task = current;
+		get_task_struct(current);
+		work->sig = sig;
+		work->group = group;
+		irq_work_queue(&work->irq_work);
+		return 0;
+	}
+
+	return do_send_sig_info(sig, SEND_SIG_PRIV, current, group);
+}
+
+BPF_CALL_1(bpf_send_signal, u32, sig)
+{
+	return bpf_send_signal_common(sig, true);
+}
+
+static const struct bpf_func_proto bpf_send_signal_proto = {
+	.func		= bpf_send_signal,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_1(bpf_send_signal_thread, u32, sig)
+{
+	return bpf_send_signal_common(sig, false);
+}
+
+static const struct bpf_func_proto bpf_send_signal_thread_proto = {
+	.func		= bpf_send_signal_thread,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_ANYTHING,
+};
+
 BPF_CALL_3(bpf_probe_read_str, void *, dst, u32, size,
 	   const void *, unsafe_ptr)
 {
@@ -509,18 +725,34 @@ static const struct bpf_func_proto *tracing_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_prandom_u32_proto;
 	case BPF_FUNC_probe_read_str:
 		return &bpf_probe_read_str_proto;
+	case BPF_FUNC_probe_read_user:
+		return &bpf_probe_read_user_proto;
+	case BPF_FUNC_probe_read_kernel:
+		return &bpf_probe_read_kernel_proto;
+	case BPF_FUNC_probe_read_user_str:
+		return &bpf_probe_read_user_str_proto;
+	case BPF_FUNC_probe_read_kernel_str:
+		return &bpf_probe_read_kernel_str_proto;
+	case BPF_FUNC_send_signal:
+		return &bpf_send_signal_proto;
+	case BPF_FUNC_send_signal_thread:
+		return &bpf_send_signal_thread_proto;
+	case BPF_FUNC_perf_event_read_value:
+		return &bpf_perf_event_read_value_proto;
 	default:
 		return NULL;
 	}
 }
 
-static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func_id)
+static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_perf_event_output:
 		return &bpf_perf_event_output_proto;
 	case BPF_FUNC_get_stackid:
 		return &bpf_get_stackid_proto;
+	case BPF_FUNC_get_stack:
+		return &bpf_get_stack_proto;
 	default:
 		return tracing_func_proto(func_id);
 	}
@@ -528,6 +760,7 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 
 /* bpf+kprobe programs can access fields of 'struct pt_regs' */
 static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+					const struct bpf_prog *prog,
 					struct bpf_insn_access_aux *info)
 {
 	if (off < 0 || off >= sizeof(struct pt_regs))
@@ -546,9 +779,12 @@ static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type 
 	return true;
 }
 
-const struct bpf_verifier_ops kprobe_prog_ops = {
+const struct bpf_verifier_ops kprobe_verifier_ops = {
 	.get_func_proto  = kprobe_prog_func_proto,
 	.is_valid_access = kprobe_prog_is_valid_access,
+};
+
+const struct bpf_prog_ops kprobe_prog_ops = {
 };
 
 BPF_CALL_5(bpf_perf_event_output_tp, void *, tp_buff, struct bpf_map *, map,
@@ -598,19 +834,41 @@ static const struct bpf_func_proto bpf_get_stackid_proto_tp = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
+BPF_CALL_4(bpf_get_stack_tp, void *, tp_buff, void *, buf, u32, size,
+	   u64, flags)
+{
+	struct pt_regs *regs = *(struct pt_regs **)tp_buff;
+
+	return bpf_get_stack((unsigned long) regs, (unsigned long) buf,
+			     size, flags, 0);
+}
+
+static const struct bpf_func_proto bpf_get_stack_proto_tp = {
+	.func		= bpf_get_stack_tp,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_perf_event_output:
 		return &bpf_perf_event_output_proto_tp;
 	case BPF_FUNC_get_stackid:
 		return &bpf_get_stackid_proto_tp;
+	case BPF_FUNC_get_stack:
+		return &bpf_get_stack_proto_tp;
 	default:
 		return tracing_func_proto(func_id);
 	}
 }
 
 static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+				    const struct bpf_prog *prog,
 				    struct bpf_insn_access_aux *info)
 {
 	if (off < sizeof(void *) || off >= PERF_MAX_TRACE_SIZE)
@@ -624,12 +882,16 @@ static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type
 	return true;
 }
 
-const struct bpf_verifier_ops tracepoint_prog_ops = {
+const struct bpf_verifier_ops tracepoint_verifier_ops = {
 	.get_func_proto  = tp_prog_func_proto,
 	.is_valid_access = tp_prog_is_valid_access,
 };
 
+const struct bpf_prog_ops tracepoint_prog_ops = {
+};
+
 static bool pe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+				    const struct bpf_prog *prog,
 				    struct bpf_insn_access_aux *info)
 {
 	const int size_sp = FIELD_SIZEOF(struct bpf_perf_event_data,
@@ -684,10 +946,50 @@ static u32 pe_prog_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
-const struct bpf_verifier_ops perf_event_prog_ops = {
-	.get_func_proto		= tp_prog_func_proto,
+BPF_CALL_3(bpf_perf_prog_read_value, struct bpf_perf_event_data_kern *, ctx,
+	   struct bpf_perf_event_value *, buf, u32, size)
+{
+	int err = -EINVAL;
+
+	if (unlikely(size != sizeof(struct bpf_perf_event_value)))
+		goto clear;
+	err = perf_event_read_local(ctx->event, &buf->counter, &buf->enabled,
+				    &buf->running);
+	if (unlikely(err))
+		goto clear;
+	return 0;
+clear:
+	memset(buf, 0, size);
+	return err;
+}
+
+static const struct bpf_func_proto bpf_perf_prog_read_value_proto = {
+	.func		= bpf_perf_prog_read_value,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+};
+
+static const struct bpf_func_proto *
+pe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_perf_prog_read_value:
+		return &bpf_perf_prog_read_value_proto;
+	default:
+		return tp_prog_func_proto(func_id, prog);
+	}
+}
+
+const struct bpf_verifier_ops perf_event_verifier_ops = {
+	.get_func_proto		= pe_prog_func_proto,
 	.is_valid_access	= pe_prog_is_valid_access,
 	.convert_ctx_access	= pe_prog_convert_ctx_access,
+};
+
+const struct bpf_prog_ops perf_event_prog_ops = {
 };
 
 static DEFINE_MUTEX(bpf_event_mutex);
@@ -747,4 +1049,296 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 
 out:
 	mutex_unlock(&bpf_event_mutex);
+}
+
+/*
+ * BPF raw tracepoints (5.10 backport). Yalnizca cekirdege gomulu tracepoint
+ * lar (modul destegi yok), WRITABLE yok, bpf_get_stack yok.
+ */
+extern struct bpf_raw_event_map __start__bpf_raw_tp[];
+extern struct bpf_raw_event_map __stop__bpf_raw_tp[];
+
+struct bpf_raw_event_map *bpf_get_raw_tracepoint(const char *name)
+{
+	struct bpf_raw_event_map *btp = __start__bpf_raw_tp;
+
+	for (; btp < __stop__bpf_raw_tp; btp++) {
+		if (!strcmp(btp->tp->name, name))
+			return btp;
+	}
+
+	return NULL;
+}
+
+void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
+{
+	/* modul tracepoint destegi yok: referans tutulmaz */
+}
+
+/*
+ * bpf_raw_tp_regs are separate from bpf_pt_regs used from skb/xdp
+ * to avoid potential recursive reuse issue when/if tracepoints are added
+ * inside bpf_*_event_output and/or bpf_get_stackid.
+ *
+ * Since raw tracepoints run despite bpf_prog_active, support concurrent usage
+ * in normal, irq, and nmi context.
+ */
+struct bpf_raw_tp_regs {
+	struct pt_regs regs[3];
+};
+static DEFINE_PER_CPU(struct bpf_raw_tp_regs, bpf_raw_tp_regs);
+static DEFINE_PER_CPU(int, bpf_raw_tp_nest_level);
+static struct pt_regs *get_bpf_raw_tp_regs(void)
+{
+	struct bpf_raw_tp_regs *tp_regs = this_cpu_ptr(&bpf_raw_tp_regs);
+	int nest_level = this_cpu_inc_return(bpf_raw_tp_nest_level);
+
+	if (nest_level > ARRAY_SIZE(tp_regs->regs)) {
+		this_cpu_dec(bpf_raw_tp_nest_level);
+		return ERR_PTR(-EBUSY);
+	}
+
+	return &tp_regs->regs[nest_level - 1];
+}
+
+static void put_bpf_raw_tp_regs(void)
+{
+	this_cpu_dec(bpf_raw_tp_nest_level);
+}
+
+BPF_CALL_5(bpf_perf_event_output_raw_tp, struct bpf_raw_tracepoint_args *, args,
+	   struct bpf_map *, map, u64, flags, void *, data, u64, size)
+{
+	struct pt_regs *regs = get_bpf_raw_tp_regs();
+	int ret;
+
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	perf_fetch_caller_regs(regs);
+	ret = ____bpf_perf_event_output(regs, map, flags, data, size);
+
+	put_bpf_raw_tp_regs();
+	return ret;
+}
+
+static const struct bpf_func_proto bpf_perf_event_output_proto_raw_tp = {
+	.func		= bpf_perf_event_output_raw_tp,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_MEM,
+	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+};
+
+BPF_CALL_3(bpf_get_stackid_raw_tp, struct bpf_raw_tracepoint_args *, args,
+	   struct bpf_map *, map, u64, flags)
+{
+	struct pt_regs *regs = get_bpf_raw_tp_regs();
+	int ret;
+
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	perf_fetch_caller_regs(regs);
+	/* similar to bpf_perf_event_output_tp, but pt_regs fetched differently */
+	ret = bpf_get_stackid((unsigned long) regs, (unsigned long) map,
+			      flags, 0, 0);
+	put_bpf_raw_tp_regs();
+	return ret;
+}
+
+static const struct bpf_func_proto bpf_get_stackid_proto_raw_tp = {
+	.func		= bpf_get_stackid_raw_tp,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_get_stack_raw_tp, struct bpf_raw_tracepoint_args *, args,
+	   void *, buf, u32, size, u64, flags)
+{
+	struct pt_regs *regs = get_bpf_raw_tp_regs();
+	long ret;
+
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	perf_fetch_caller_regs(regs);
+	ret = bpf_get_stack((unsigned long) regs, (unsigned long) buf,
+			    size, flags, 0);
+	put_bpf_raw_tp_regs();
+	return ret;
+}
+
+static const struct bpf_func_proto bpf_get_stack_proto_raw_tp = {
+	.func		= bpf_get_stack_raw_tp,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+static const struct bpf_func_proto *
+raw_tp_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_perf_event_output:
+		return &bpf_perf_event_output_proto_raw_tp;
+	case BPF_FUNC_get_stackid:
+		return &bpf_get_stackid_proto_raw_tp;
+	case BPF_FUNC_get_stack:
+		return &bpf_get_stack_proto_raw_tp;
+	default:
+		return tracing_func_proto(func_id);
+	}
+}
+
+static bool raw_tp_prog_is_valid_access(int off, int size,
+					enum bpf_access_type type,
+					const struct bpf_prog *prog,
+					struct bpf_insn_access_aux *info)
+{
+	if (off < 0 || off >= sizeof(__u64) * MAX_BPF_FUNC_ARGS)
+		return false;
+	if (type != BPF_READ)
+		return false;
+	if (off % size != 0)
+		return false;
+	return true;
+}
+
+const struct bpf_verifier_ops raw_tracepoint_verifier_ops = {
+	.get_func_proto  = raw_tp_prog_func_proto,
+	.is_valid_access = raw_tp_prog_is_valid_access,
+};
+
+const struct bpf_prog_ops raw_tracepoint_prog_ops = {
+};
+
+/* FAZA-6: 5.10 govde, btf_ctx_access henuz portlanmadigi icin
+ * offset/size siniri raw_tp ile ayni (yalniz BPF_TRACE_RAW_TP, bkz.
+ * check_attach_btf_id / bpf_check_attach_target). test_run tanimsiz
+ * birakildi (BPF_PROG_TEST_RUN bu tip icin desteklenmiyor, boot/attach
+ * yoluna etkisi yok). */
+static const struct bpf_func_proto *
+tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_perf_event_output:
+		return &bpf_perf_event_output_proto_raw_tp;
+	case BPF_FUNC_get_stackid:
+		return &bpf_get_stackid_proto_raw_tp;
+	case BPF_FUNC_get_stack:
+		return &bpf_get_stack_proto_raw_tp;
+	default:
+		return tracing_func_proto(func_id);
+	}
+}
+
+static bool tracing_prog_is_valid_access(int off, int size,
+					 enum bpf_access_type type,
+					 const struct bpf_prog *prog,
+					 struct bpf_insn_access_aux *info)
+{
+	if (off < 0 || off >= sizeof(__u64) * MAX_BPF_FUNC_ARGS)
+		return false;
+	if (type != BPF_READ)
+		return false;
+	if (off % size != 0)
+		return false;
+	/* FAZA-7: artik gercek BTF tabanli arg tipi cozumu */
+	return btf_ctx_access(off, size, type, prog, info);
+}
+
+const struct bpf_verifier_ops tracing_verifier_ops = {
+	.get_func_proto  = tracing_prog_func_proto,
+	.is_valid_access = tracing_prog_is_valid_access,
+};
+
+const struct bpf_prog_ops tracing_prog_ops = {
+};
+
+static __always_inline
+void __bpf_trace_run(struct bpf_prog *prog, u64 *args)
+{
+	rcu_read_lock();
+	(void) BPF_PROG_RUN(prog, args);
+	rcu_read_unlock();
+}
+
+#define UNPACK(...)			__VA_ARGS__
+#define REPEAT_1(FN, DL, X, ...)	FN(X)
+#define REPEAT_2(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_1(FN, DL, __VA_ARGS__)
+#define REPEAT_3(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_2(FN, DL, __VA_ARGS__)
+#define REPEAT_4(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_3(FN, DL, __VA_ARGS__)
+#define REPEAT_5(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_4(FN, DL, __VA_ARGS__)
+#define REPEAT_6(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_5(FN, DL, __VA_ARGS__)
+#define REPEAT_7(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_6(FN, DL, __VA_ARGS__)
+#define REPEAT_8(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_7(FN, DL, __VA_ARGS__)
+#define REPEAT_9(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_8(FN, DL, __VA_ARGS__)
+#define REPEAT_10(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_9(FN, DL, __VA_ARGS__)
+#define REPEAT_11(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_10(FN, DL, __VA_ARGS__)
+#define REPEAT_12(FN, DL, X, ...)	FN(X) UNPACK DL REPEAT_11(FN, DL, __VA_ARGS__)
+#define REPEAT(X, FN, DL, ...)		REPEAT_##X(FN, DL, __VA_ARGS__)
+
+#define SARG(X)		u64 arg##X
+#define COPY(X)		args[X] = arg##X
+
+#define __DL_COM	(,)
+#define __DL_SEM	(;)
+
+#define __SEQ_0_11	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+
+#define BPF_TRACE_DEFN_x(x)						\
+	void bpf_trace_run##x(struct bpf_prog *prog,			\
+			      REPEAT(x, SARG, __DL_COM, __SEQ_0_11))	\
+	{								\
+		u64 args[x];						\
+		REPEAT(x, COPY, __DL_SEM, __SEQ_0_11);			\
+		__bpf_trace_run(prog, args);				\
+	}								\
+	EXPORT_SYMBOL_GPL(bpf_trace_run##x)
+BPF_TRACE_DEFN_x(1);
+BPF_TRACE_DEFN_x(2);
+BPF_TRACE_DEFN_x(3);
+BPF_TRACE_DEFN_x(4);
+BPF_TRACE_DEFN_x(5);
+BPF_TRACE_DEFN_x(6);
+BPF_TRACE_DEFN_x(7);
+BPF_TRACE_DEFN_x(8);
+BPF_TRACE_DEFN_x(9);
+BPF_TRACE_DEFN_x(10);
+BPF_TRACE_DEFN_x(11);
+BPF_TRACE_DEFN_x(12);
+
+static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
+{
+	struct tracepoint *tp = btp->tp;
+
+	/*
+	 * check that program doesn't access arguments beyond what's
+	 * available in this tracepoint
+	 */
+	if (prog->aux->max_ctx_offset > btp->num_args * sizeof(u64))
+		return -EINVAL;
+
+	return tracepoint_probe_register_may_exist(tp, (void *)btp->bpf_func,
+						   prog);
+}
+
+int bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
+{
+	return __bpf_probe_register(btp, prog);
+}
+
+int bpf_probe_unregister(struct bpf_raw_event_map *btp, struct bpf_prog *prog)
+{
+	return tracepoint_probe_unregister(btp->tp, (void *)btp->bpf_func, prog);
 }

@@ -43,8 +43,6 @@ struct aa_buffers {
 
 DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 
-#define COUNT_ARGS(X...) COUNT_ARGS_HELPER(, ##X, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define COUNT_ARGS_HELPER(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, n, X...) n
 #define CONCAT(X, Y) X ## Y
 #define CONCAT_AFTER(X, Y) CONCAT(X, Y)
 

@@ -14,6 +14,9 @@
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
+#include <linux/bpf-cgroup.h>
+
+#ifdef CONFIG_CGROUP_DEVICE
 
 #define ACC_MKNOD 1
 #define ACC_READ  2
@@ -801,7 +804,7 @@ struct cgroup_subsys devices_cgrp_subsys = {
 };
 
 /**
- * __devcgroup_check_permission - checks if an inode operation is permitted
+ * devcgroup_legacy_check_permission - checks if an inode operation is permitted
  * @dev_cgroup: the dev cgroup to be tested against
  * @type: device type
  * @major: device major number
@@ -810,7 +813,7 @@ struct cgroup_subsys devices_cgrp_subsys = {
  *
  * returns 0 on success, -EPERM case the operation is not permitted
  */
-static int __devcgroup_check_permission(short type, u32 major, u32 minor,
+static int devcgroup_legacy_check_permission(short type, u32 major, u32 minor,
 				        short access)
 {
 	struct dev_cgroup *dev_cgroup;
@@ -834,36 +837,22 @@ static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 	return 0;
 }
 
-int __devcgroup_inode_permission(struct inode *inode, int mask)
+#endif /* CONFIG_CGROUP_DEVICE */
+
+#if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
+
+int devcgroup_check_permission(short type, u32 major, u32 minor, short access)
 {
-	short type, access = 0;
+	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
 
-	if (S_ISBLK(inode->i_mode))
-		type = DEV_BLOCK;
-	if (S_ISCHR(inode->i_mode))
-		type = DEV_CHAR;
-	if (mask & MAY_WRITE)
-		access |= ACC_WRITE;
-	if (mask & MAY_READ)
-		access |= ACC_READ;
+	if (rc)
+		return -EPERM;
 
-	return __devcgroup_check_permission(type, imajor(inode), iminor(inode),
-			access);
+#ifdef CONFIG_CGROUP_DEVICE
+	return devcgroup_legacy_check_permission(type, major, minor, access);
+#else /* CONFIG_CGROUP_DEVICE */
+	return 0;
+#endif /* CONFIG_CGROUP_DEVICE */
 }
-
-int devcgroup_inode_mknod(int mode, dev_t dev)
-{
-	short type;
-
-	if (!S_ISBLK(mode) && !S_ISCHR(mode))
-		return 0;
-
-	if (S_ISBLK(mode))
-		type = DEV_BLOCK;
-	else
-		type = DEV_CHAR;
-
-	return __devcgroup_check_permission(type, MAJOR(dev), MINOR(dev),
-			ACC_MKNOD);
-
-}
+EXPORT_SYMBOL(devcgroup_check_permission);
+#endif /* defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF) */

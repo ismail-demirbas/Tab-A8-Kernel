@@ -217,6 +217,15 @@
 /*
  * .data section
  */
+#ifdef CONFIG_BPF_EVENTS
+#define BPF_RAW_TP() STRUCT_ALIGN();					\
+			 VMLINUX_SYMBOL(__start__bpf_raw_tp) = .;	\
+			 KEEP(*(__bpf_raw_tp_map))			\
+			 VMLINUX_SYMBOL(__stop__bpf_raw_tp) = .;
+#else
+#define BPF_RAW_TP()
+#endif
+
 #define DATA_DATA							\
 	*(.xiptext)							\
 	*(DATA_MAIN)							\
@@ -239,6 +248,7 @@
 	LIKELY_PROFILE()		       				\
 	BRANCH_PROFILE()						\
 	TRACE_PRINTKS()							\
+	BPF_RAW_TP()							\
 	TRACEPOINT_STR()
 
 /*
@@ -434,9 +444,10 @@
 		VMLINUX_SYMBOL(__start___modver) = .;			\
 		KEEP(*(__modver))					\
 		VMLINUX_SYMBOL(__stop___modver) = .;			\
-		. = ALIGN((align));					\
-		VMLINUX_SYMBOL(__end_rodata) = .;			\
 	}								\
+	BTF								\
+	. = ALIGN((align));					\
+	VMLINUX_SYMBOL(__end_rodata) = .;			\
 	. = ALIGN((align));
 
 /* RODATA & RO_DATA provided for backward compatibility.
@@ -534,6 +545,24 @@
 		KEEP(*(__ex_table))					\
 		VMLINUX_SYMBOL(__stop___ex_table) = .;			\
 	}
+
+/*
+ * .BTF
+ */
+#ifdef CONFIG_DEBUG_INFO_BTF
+#define BTF								\
+	.BTF : AT(ADDR(.BTF) - LOAD_OFFSET) {				\
+		VMLINUX_SYMBOL(__start_BTF) = .;			\
+		KEEP(*(.BTF))						\
+		VMLINUX_SYMBOL(__stop_BTF) = .;			\
+	}								\
+	. = ALIGN(4);							\
+	.BTF_ids : AT(ADDR(.BTF_ids) - LOAD_OFFSET) {			\
+		*(.BTF_ids)						\
+	}
+#else
+#define BTF
+#endif
 
 /*
  * Init task

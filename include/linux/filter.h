@@ -18,11 +18,27 @@
 #include <linux/capability.h>
 #include <linux/cryptohash.h>
 #include <linux/set_memory.h>
+#include <linux/scatterlist.h>
+#include <linux/list.h>
 
 #include <net/sch_generic.h>
+#include <net/xdp.h>
+
+#ifdef __GENKSYMS__
+struct xdp_buff {
+	void *data;
+	void *data_end;
+	void *data_hard_start;
+};
+#endif
 
 #include <uapi/linux/filter.h>
 #include <uapi/linux/bpf.h>
+
+/* BPF_LDX index for fault-tolerant kernel access (backport, 5.10 govde).
+ * Sadece internal insn->code icinde BPF_MODE olarak kullanilir, UAPI
+ * BPF_XADD (0xc0) ile cakismaz. */
+#define BPF_PROBE_MEM	0x20
 
 struct sk_buff;
 struct sock;
@@ -267,6 +283,26 @@ struct bpf_prog_aux;
 		.off   = OFF,					\
 		.imm   = IMM })
 
+/* Like BPF_JMP_REG, but with 32-bit wide operands for comparison. */
+
+#define BPF_JMP32_REG(OP, DST, SRC, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_OP(OP) | BPF_X,	\
+		.dst_reg = DST,					\
+		.src_reg = SRC,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+/* Like BPF_JMP_IMM, but with 32-bit wide operands for comparison. */
+
+#define BPF_JMP32_IMM(OP, DST, IMM, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_OP(OP) | BPF_K,	\
+		.dst_reg = DST,					\
+		.src_reg = 0,					\
+		.off   = OFF,					\
+		.imm   = IMM })
+
 /* Unconditional jumps, goto pc + off16 */
 
 #define BPF_JMP_A(OFF)						\
@@ -456,11 +492,21 @@ struct bpf_binary_header {
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	u16			jited:1,	/* Is our filter JIT'ed? */
+#ifndef __GENKSYMS__
+				jit_requested:1,/* archs need to JIT the prog */
+#endif
 				locked:1,	/* Program image locked? */
 				gpl_compatible:1, /* Is filter GPL compatible? */
 				cb_access:1,	/* Is control block accessed? */
-				dst_needed:1;	/* Do we need dst entry? */
+				dst_needed:1	/* Do we need dst entry? */
+#ifndef __GENKSYMS__
+				, is_func:1	/* program is a bpf function */
+#endif
+				;
 	enum bpf_prog_type	type;		/* Type of BPF program */
+#ifndef __GENKSYMS__
+	enum bpf_attach_type	expected_attach_type; /* For some prog types */
+#endif
 	u32			len;		/* Number of filter blocks */
 	u32			jited_len;	/* Size of jited insns in bytes */
 	u8			tag[BPF_TAG_SIZE];
@@ -543,12 +589,6 @@ static inline void bpf_jit_set_header_magic(struct bpf_binary_header *hdr)
 struct bpf_skb_data_end {
 	struct qdisc_skb_cb qdisc_cb;
 	void *data_end;
-};
-
-struct xdp_buff {
-	void *data;
-	void *data_end;
-	void *data_hard_start;
 };
 
 /* compute the linear packet data range [data, data_end) which
@@ -726,6 +766,7 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 }
 
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err);
+bool bpf_opcode_in_insntable(u8 code);
 void bpf_prog_free(struct bpf_prog *fp);
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
@@ -751,6 +792,24 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_reuseport_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_reuseport_attach_bpf(u32 ufd, struct sock *sk);
+void sk_reuseport_prog_free(struct bpf_prog *prog);
+
+struct sock_reuseport;
+
+#ifdef CONFIG_INET
+struct sock *bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
+				  struct bpf_prog *prog, struct sk_buff *skb,
+				  u32 hash);
+#else
+static inline struct sock *
+bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
+		     struct bpf_prog *prog, struct sk_buff *skb,
+		     u32 hash)
+{
+	return NULL;
+}
+#endif
+
 int sk_detach_filter(struct sock *sk);
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
@@ -780,6 +839,13 @@ int xdp_do_redirect(struct net_device *dev,
 		    struct bpf_prog *prog);
 void xdp_do_flush_map(void);
 
+void bpf_clear_redirect_map(struct bpf_map *map);
+struct sk_msg_buff;
+struct sock *do_msg_redirect_map(struct sk_msg_buff *msg);
+bool xdp_return_frame_no_direct(void);
+void xdp_set_return_frame_no_direct(void);
+void xdp_clear_return_frame_no_direct(void);
+
 void bpf_warn_invalid_xdp_action(u32 act);
 void bpf_warn_invalid_xdp_redirect(u32 ifindex);
 
@@ -805,6 +871,9 @@ void bpf_jit_free(struct bpf_prog *fp);
 
 struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *fp);
 void bpf_jit_prog_release_other(struct bpf_prog *fp, struct bpf_prog *fp_other);
+int bpf_jit_get_func_addr(const struct bpf_prog *prog,
+			  const struct bpf_insn *insn, bool extra_pass,
+			  u64 *func_addr, bool *func_addr_fixed);
 
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
@@ -1017,6 +1086,56 @@ static inline int bpf_tell_extensions(void)
 	return SKF_AD_MAX;
 }
 
+struct bpf_sock_addr_kern {
+	struct sock *sk;
+	struct sockaddr *uaddr;
+	/* Temporary "register" to make indirect stores to nested structures
+	 * defined above. We need three registers to make such a store, but
+	 * only two (src and dst) are available at convert_ctx_access time
+	 */
+	u64 tmp_reg;
+	void *t_ctx;	/* Attach type specific context. */
+};
+
+struct ctl_table;
+struct ctl_table_header;
+
+struct bpf_sysctl_kern {
+	struct ctl_table_header *head;
+	struct ctl_table *table;
+	void *cur_val;
+	size_t cur_len;
+	void *new_val;
+	size_t new_len;
+	int new_updated;
+	int write;
+	loff_t *ppos;
+	/* Temporary "register" for indirect stores to ppos. */
+	u64 tmp_reg;
+};
+
+static inline u8
+bpf_ctx_narrow_access_offset(u32 off, u32 size, u32 size_default)
+{
+	u8 access_off = off & (size_default - 1);
+
+#ifdef __LITTLE_ENDIAN
+	return access_off;
+#else
+	return size_default - (access_off + size);
+#endif
+}
+
+struct bpf_sockopt_kern {
+	struct sock	*sk;
+	u8		*optval;
+	u8		*optval_end;
+	s32		level;
+	s32		optname;
+	s32		optlen;
+	s32		retval;
+};
+
 struct bpf_sock_ops_kern {
 	struct	sock *sk;
 	u32	op;
@@ -1025,5 +1144,39 @@ struct bpf_sock_ops_kern {
 		u32 replylong[4];
 	};
 };
+
+const struct bpf_func_proto *bpf_base_func_proto(enum bpf_func_id func_id);
+
+#ifdef CONFIG_INET
+struct sk_reuseport_kern {
+	struct sk_buff *skb;
+	struct sock *sk;
+	struct sock *selected_sk;
+	void *data_end;
+	u32 hash;
+	u32 reuseport_id;
+	bool bind_inany;
+};
+#endif
+
+struct sk_msg_buff {
+	void *data;
+	void *data_end;
+	__u32 apply_bytes;
+	__u32 cork_bytes;
+	int sg_copybreak;
+	int sg_start;
+	int sg_curr;
+	int sg_end;
+	struct scatterlist sg_data[MAX_SKB_FRAGS];
+	bool sg_copy[MAX_SKB_FRAGS];
+	__u32 flags;
+	struct sock *sk_redir;
+	struct sock *sk;
+	struct sk_buff *skb;
+	struct list_head list;
+};
+
+extern const struct bpf_func_proto bpf_tcp_sock_proto;
 
 #endif /* __LINUX_FILTER_H__ */

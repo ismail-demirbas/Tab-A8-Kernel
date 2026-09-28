@@ -4493,6 +4493,33 @@ out:
 	return ret;
 }
 
+/*
+ *	netif_receive_skb_core - special purpose version of netif_receive_skb
+ *	@skb: buffer to process
+ *
+ *	More direct receive version of netif_receive_skb(). It should
+ *	only be used by callers that have a need to skip RPS and Generic XDP.
+ *	Caller must also take care of handling if (page_is_)pfmemalloc.
+ *
+ *	This function may only be called from softirq context and interrupts
+ *	should be enabled.
+ *
+ *	Return values (usually ignored):
+ *	NET_RX_SUCCESS: no congestion
+ *	NET_RX_DROP: packet was dropped
+ */
+int netif_receive_skb_core(struct sk_buff *skb)
+{
+	int ret;
+
+	rcu_read_lock();
+	ret = __netif_receive_skb_core(skb, false);
+	rcu_read_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL(netif_receive_skb_core);
+
 static int __netif_receive_skb(struct sk_buff *skb)
 {
 	int ret;
@@ -7511,6 +7538,7 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 	unsigned int i, count = dev->num_rx_queues;
 	struct netdev_rx_queue *rx;
 	size_t sz = count * sizeof(*rx);
+	int err = 0;
 
 	BUG_ON(count < 1);
 
@@ -7520,9 +7548,35 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 
 	dev->_rx = rx;
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
 		rx[i].dev = dev;
+
+		/* XDP RX-queue setup */
+		err = xdp_rxq_info_reg(&rx[i].xdp_rxq, dev, i);
+		if (err < 0)
+			goto err_rxq_info;
+	}
 	return 0;
+
+err_rxq_info:
+	while (i--)
+		xdp_rxq_info_unreg(&rx[i].xdp_rxq);
+	kvfree(dev->_rx);
+	dev->_rx = NULL;
+	return err;
+}
+
+static void netif_free_rx_queues(struct net_device *dev)
+{
+	unsigned int i, count = dev->num_rx_queues;
+
+	if (!dev->_rx)
+		return;
+
+	for (i = 0; i < count; i++)
+		xdp_rxq_info_unreg(&dev->_rx[i].xdp_rxq);
+
+	kvfree(dev->_rx);
 }
 #endif
 
@@ -8224,7 +8278,7 @@ void free_netdev(struct net_device *dev)
 	might_sleep();
 	netif_free_tx_queues(dev);
 #ifdef CONFIG_SYSFS
-	kvfree(dev->_rx);
+	netif_free_rx_queues(dev);
 #endif
 
 	kfree(rcu_dereference_protected(dev->ingress_queue, 1));

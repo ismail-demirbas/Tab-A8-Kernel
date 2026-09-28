@@ -387,6 +387,12 @@ struct sock {
 	int			sk_rcvbuf;
 
 	struct sk_filter __rcu	*sk_filter;
+#ifdef CONFIG_BPF_SYSCALL
+#ifndef __GENKSYMS__
+	/* ptr to cache and control for bpf_sk_storage */
+	struct bpf_local_storage __rcu	*sk_bpf_storage;
+#endif
+#endif
 	union {
 		struct socket_wq __rcu	*sk_wq;
 		struct socket_wq	*sk_wq_raw;
@@ -1115,6 +1121,9 @@ struct proto {
 #endif
 
 	bool			(*stream_memory_free)(const struct sock *sk);
+#ifndef __GENKSYMS__
+	bool			(*stream_memory_read)(const struct sock *sk);
+#endif
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(struct sock *sk);
 	void			(*leave_memory_pressure)(struct sock *sk);
@@ -2174,6 +2183,10 @@ static inline struct page_frag *sk_page_frag(struct sock *sk)
 }
 
 bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag);
+
+int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
+		int sg_start, int *sg_curr, unsigned int *sg_size,
+		int first_coalesce);
 
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO

@@ -13,6 +13,9 @@
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/bpf-cgroup.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -576,6 +579,7 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	ssize_t error;
 	size_t res;
+	void *nbuf = NULL;
 
 	if (IS_ERR(head))
 		return PTR_ERR(head);
@@ -593,9 +597,27 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	if (!table->proc_handler)
 		goto out;
 
-	/* careful: calling conventions are nasty here */
 	res = count;
-	error = table->proc_handler(table, write, buf, &res, ppos);
+	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write, buf, &res, ppos,
+					   &nbuf);
+	if (error)
+		goto out;
+
+	/* careful: calling conventions are nasty here */
+	if (nbuf) {
+		/* BPF program replaced the new value: nbuf is a kernel
+		 * buffer, proc_handler expects __user -> KERNEL_DS.
+		 */
+		mm_segment_t old_fs = get_fs();
+
+		set_fs(KERNEL_DS);
+		error = table->proc_handler(table, write,
+					    (void __user *)nbuf, &res, ppos);
+		set_fs(old_fs);
+		kfree(nbuf);
+	} else {
+		error = table->proc_handler(table, write, buf, &res, ppos);
+	}
 	if (!error)
 		error = res;
 out:

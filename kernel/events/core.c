@@ -3729,7 +3729,11 @@ static inline u64 perf_event_count(struct perf_event *event)
  *     will not be local and we cannot read them atomically
  *   - must not have a pmu::count method
  */
-int perf_event_read_local(struct perf_event *event, u64 *value)
+static void calc_timer_values(struct perf_event *event,
+				u64 *now, u64 *enabled, u64 *running);
+
+int perf_event_read_local(struct perf_event *event, u64 *value,
+			  u64 *enabled, u64 *running)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -3778,11 +3782,21 @@ int perf_event_read_local(struct perf_event *event, u64 *value)
 		event->pmu->read(event);
 
 	*value = local64_read(&event->count);
+	if (enabled || running) {
+		u64 __enabled, __running, __now;
+
+		calc_timer_values(event, &__now, &__enabled, &__running);
+		if (enabled)
+			*enabled = __enabled;
+		if (running)
+			*running = __running;
+	}
 out:
 	local_irq_restore(flags);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(perf_event_read_local);
 
 static int perf_event_read(struct perf_event *event, bool group)
 {
@@ -8207,6 +8221,7 @@ static void bpf_overflow_handler(struct perf_event *event,
 	struct bpf_perf_event_data_kern ctx = {
 		.data = data,
 		.regs = regs,
+		.event = event,
 	};
 	int ret = 0;
 

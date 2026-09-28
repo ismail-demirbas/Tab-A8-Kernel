@@ -543,7 +543,9 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		    tp->urg_data)
 			target++;
 
-		if (tp->rcv_nxt - tp->copied_seq >= target)
+		if (tp->rcv_nxt - tp->copied_seq >= target ||
+		    (sk->sk_prot->stream_memory_read &&
+		     sk->sk_prot->stream_memory_read(sk)))
 			mask |= POLLIN | POLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {

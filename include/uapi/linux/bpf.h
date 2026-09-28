@@ -14,6 +14,7 @@
 /* Extended instruction set based on top of classic BPF */
 
 /* instruction classes */
+#define BPF_JMP32	0x06	/* jmp mode in word width */
 #define BPF_ALU64	0x07	/* alu mode in double word width */
 
 /* ld/ldx fields */
@@ -75,6 +76,11 @@ struct bpf_lpm_trie_key {
 	__u8	data[0];	/* Arbitrary size */
 };
 
+struct bpf_cgroup_storage_key {
+	__u64	cgroup_inode_id;	/* cgroup inode id */
+	__u32	attach_type;		/* program attach type */
+};
+
 /* BPF syscall commands, see bpf(2) man-page for details. */
 enum bpf_cmd {
 	BPF_MAP_CREATE,
@@ -93,6 +99,34 @@ enum bpf_cmd {
 	BPF_PROG_GET_FD_BY_ID,
 	BPF_MAP_GET_FD_BY_ID,
 	BPF_OBJ_GET_INFO_BY_FD,
+	BPF_PROG_QUERY,
+	BPF_RAW_TRACEPOINT_OPEN,
+	BPF_BTF_LOAD,
+	BPF_BTF_GET_FD_BY_ID,
+	BPF_TASK_FD_QUERY,
+	BPF_MAP_LOOKUP_AND_DELETE_ELEM,
+	BPF_MAP_FREEZE,
+	BPF_BTF_GET_NEXT_ID,
+	BPF_MAP_LOOKUP_BATCH,
+	BPF_MAP_LOOKUP_AND_DELETE_BATCH,
+	BPF_MAP_UPDATE_BATCH,
+	BPF_MAP_DELETE_BATCH,
+	BPF_LINK_CREATE,
+	BPF_LINK_UPDATE,
+	BPF_LINK_GET_FD_BY_ID,
+	BPF_LINK_GET_NEXT_ID,
+	BPF_ENABLE_STATS,
+	BPF_ITER_CREATE,
+	BPF_LINK_DETACH,
+	BPF_PROG_BIND_MAP,
+};
+
+enum bpf_link_type {
+	BPF_LINK_TYPE_UNSPEC = 0,
+	BPF_LINK_TYPE_RAW_TRACEPOINT = 1,
+	BPF_LINK_TYPE_CGROUP = 3,
+
+	MAX_BPF_LINK_TYPE,
 };
 
 enum bpf_map_type {
@@ -112,6 +146,21 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_HASH_OF_MAPS,
 	BPF_MAP_TYPE_DEVMAP,
 	BPF_MAP_TYPE_SOCKMAP,
+#ifndef __GENKSYMS__
+	BPF_MAP_TYPE_CPUMAP,
+	BPF_MAP_TYPE_XSKMAP,
+	BPF_MAP_TYPE_SOCKHASH,
+	BPF_MAP_TYPE_CGROUP_STORAGE,
+	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
+	BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
+	BPF_MAP_TYPE_QUEUE,
+	BPF_MAP_TYPE_STACK,
+	BPF_MAP_TYPE_SK_STORAGE,
+	BPF_MAP_TYPE_DEVMAP_HASH,
+	BPF_MAP_TYPE_STRUCT_OPS,
+	BPF_MAP_TYPE_RINGBUF,
+	BPF_MAP_TYPE_INODE_STORAGE,
+#endif
 };
 
 enum bpf_prog_type {
@@ -130,6 +179,25 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_LWT_XMIT,
 	BPF_PROG_TYPE_SOCK_OPS,
 	BPF_PROG_TYPE_SK_SKB,
+#ifndef __GENKSYMS__
+	BPF_PROG_TYPE_CGROUP_DEVICE,
+	BPF_PROG_TYPE_SK_MSG,
+	BPF_PROG_TYPE_RAW_TRACEPOINT,
+	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+	BPF_PROG_TYPE_LWT_SEG6LOCAL,
+	BPF_PROG_TYPE_LIRC_MODE2,
+	BPF_PROG_TYPE_SK_REUSEPORT,
+	BPF_PROG_TYPE_FLOW_DISSECTOR,
+	BPF_PROG_TYPE_CGROUP_SYSCTL,
+	BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE,
+	BPF_PROG_TYPE_CGROUP_SOCKOPT,
+	BPF_PROG_TYPE_TRACING,
+	BPF_PROG_TYPE_STRUCT_OPS,
+	BPF_PROG_TYPE_EXT,
+	BPF_PROG_TYPE_LSM,
+	BPF_PROG_TYPE_SK_LOOKUP,
+	BPF_PROG_TYPE_FUSE,
+#endif
 };
 
 enum bpf_attach_type {
@@ -139,6 +207,40 @@ enum bpf_attach_type {
 	BPF_CGROUP_SOCK_OPS,
 	BPF_SK_SKB_STREAM_PARSER,
 	BPF_SK_SKB_STREAM_VERDICT,
+#ifndef __GENKSYMS__
+	BPF_CGROUP_DEVICE,
+	BPF_SK_MSG_VERDICT,
+	BPF_CGROUP_INET4_BIND,
+	BPF_CGROUP_INET6_BIND,
+	BPF_CGROUP_INET4_CONNECT,
+	BPF_CGROUP_INET6_CONNECT,
+	BPF_CGROUP_INET4_POST_BIND,
+	BPF_CGROUP_INET6_POST_BIND,
+	BPF_CGROUP_UDP4_SENDMSG,
+	BPF_CGROUP_UDP6_SENDMSG,
+	BPF_LIRC_MODE2,
+	BPF_FLOW_DISSECTOR,
+	BPF_CGROUP_SYSCTL,
+	BPF_CGROUP_UDP4_RECVMSG,
+	BPF_CGROUP_UDP6_RECVMSG,
+	BPF_CGROUP_GETSOCKOPT,
+	BPF_CGROUP_SETSOCKOPT,
+	BPF_TRACE_RAW_TP,
+	BPF_TRACE_FENTRY,
+	BPF_TRACE_FEXIT,
+	BPF_MODIFY_RETURN,
+	BPF_LSM_MAC,
+	BPF_TRACE_ITER,
+	BPF_CGROUP_INET4_GETPEERNAME,
+	BPF_CGROUP_INET6_GETPEERNAME,
+	BPF_CGROUP_INET4_GETSOCKNAME,
+	BPF_CGROUP_INET6_GETSOCKNAME,
+	BPF_XDP_DEVMAP,
+	BPF_CGROUP_INET_SOCK_RELEASE,
+	BPF_XDP_CPUMAP,
+	BPF_SK_LOOKUP,
+	BPF_XDP,
+#endif /* __GENKSYMS__ */
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -185,6 +287,10 @@ enum bpf_attach_type {
  */
 #define BPF_F_ALLOW_OVERRIDE	(1U << 0)
 #define BPF_F_ALLOW_MULTI	(1U << 1)
+#define BPF_F_REPLACE		(1U << 2)
+
+/* Flags for BPF_PROG_QUERY. */
+#define BPF_F_QUERY_EFFECTIVE	(1U << 0)
 
 /* If BPF_F_STRICT_ALIGNMENT is used in BPF_PROG_LOAD command, the
  * verifier will perform strict alignment checking as if the kernel
@@ -193,12 +299,31 @@ enum bpf_attach_type {
  */
 #define BPF_F_STRICT_ALIGNMENT	(1U << 0)
 
+/* BPF_F_ANY_ALIGNMENT: skip strict alignment checks in the verifier */
+#define BPF_F_ANY_ALIGNMENT	(1U << 1)
+
+/* BPF_F_TEST_RND_HI32: testing only, randomize upper 32 bits of zext regs */
+#define BPF_F_TEST_RND_HI32	(1U << 2)
+
+/* BPF_F_TEST_STATE_FREQ: testing only, verifier state checkpoint frequency */
+#define BPF_F_TEST_STATE_FREQ	(1U << 3)
+
+/* BPF_F_SLEEPABLE: prog may sleep (not supported by any prog type here) */
+#define BPF_F_SLEEPABLE	(1U << 4)
+
 #define BPF_PSEUDO_MAP_FD	1
+#define BPF_PSEUDO_MAP_VALUE	2
+
+/* when bpf_call->src_reg == BPF_PSEUDO_CALL, bpf_call->imm == pc-relative
+ * offset to another bpf function
+ */
+#define BPF_PSEUDO_CALL		1
 
 /* flags for BPF_MAP_UPDATE_ELEM command */
 #define BPF_ANY		0 /* create new element or update existing */
 #define BPF_NOEXIST	1 /* create new element if it didn't exist */
 #define BPF_EXIST	2 /* update existing element */
+#define BPF_F_LOCK	4 /* spin_lock-ed map_lookup/map_update */
 
 /* flags for BPF_MAP_CREATE command */
 #define BPF_F_NO_PREALLOC	(1U << 0)
@@ -216,6 +341,18 @@ enum bpf_attach_type {
 #define BPF_F_RDONLY		(1U << 3)
 #define BPF_F_WRONLY		(1U << 4)
 
+/* 5.10 map flags (sabit ekleme, davranissiz) */
+#define BPF_F_STACK_BUILD_ID	(1U << 5)
+#define BPF_F_ZERO_SEED	(1U << 6)
+#define BPF_F_RDONLY_PROG	(1U << 7)
+#define BPF_F_WRONLY_PROG	(1U << 8)
+#define BPF_F_CLONE	(1U << 9)
+#define BPF_F_MMAPABLE	(1U << 10)
+#define BPF_F_PRESERVE_ELEMS	(1U << 11)
+#define BPF_F_INNER_MAP	(1U << 12)
+
+#define BPF_OBJ_NAME_LEN 16U
+
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
 		__u32	map_type;	/* one of enum bpf_map_type */
@@ -229,6 +366,16 @@ union bpf_attr {
 		__u32	numa_node;	/* numa node (effective only if
 					 * BPF_F_NUMA_NODE is set).
 					 */
+#ifndef __GENKSYMS__
+		char	map_name[BPF_OBJ_NAME_LEN];
+		__u32	map_ifindex;
+		__u32	btf_fd;		/* fd pointing to a BTF type data */
+		__u32	btf_key_type_id;	/* BTF type_id of the key */
+		__u32	btf_value_type_id;	/* BTF type_id of the value */
+		__u32	btf_vmlinux_value_type_id;/* BTF type_id of a kernel-
+						   * struct stored as the map value
+						   */
+#endif
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
@@ -251,6 +398,20 @@ union bpf_attr {
 		__aligned_u64	log_buf;	/* user supplied buffer */
 		__u32		kern_version;	/* checked when prog_type=kprobe */
 		__u32		prog_flags;
+#ifndef __GENKSYMS__
+		char		prog_name[BPF_OBJ_NAME_LEN];
+		__u32		prog_ifindex;	/* ABI only, unused */
+		__u32		expected_attach_type;	/* ABI only, unused */
+		__u32		prog_btf_fd;
+		__u32		func_info_rec_size;
+		__aligned_u64	func_info;
+		__u32		func_info_cnt;
+		__u32		line_info_rec_size;
+		__aligned_u64	line_info;
+		__u32		line_info_cnt;
+		__u32		attach_btf_id;	/* in-kernel BTF type id to attach to */
+		__u32		attach_prog_fd; /* 0 to attach to vmlinux */
+#endif
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */
@@ -282,6 +443,10 @@ union bpf_attr {
 			__u32		start_id;
 			__u32		prog_id;
 			__u32		map_id;
+#ifndef __GENKSYMS__
+			__u32		btf_id;
+			__u32		link_id;
+#endif
 		};
 		__u32		next_id;
 		__u32		open_flags;
@@ -292,6 +457,50 @@ union bpf_attr {
 		__u32		info_len;
 		__aligned_u64	info;
 	} info;
+
+#ifndef __GENKSYMS__
+	struct { /* anonymous struct used by BPF_PROG_QUERY command */
+		__u32		target_fd;	/* container object to query */
+		__u32		attach_type;
+		__u32		query_flags;
+		__u32		attach_flags;
+		__aligned_u64	prog_ids;
+		__u32		prog_cnt;
+	} query;
+#endif
+
+#ifndef __GENKSYMS__
+	struct { /* struct used by BPF_LINK_UPDATE command */
+		__u32		link_fd;
+		__u32		new_prog_fd;
+		__u32		flags;
+		__u32		old_prog_fd;
+	} link_update;
+
+	struct { /* struct used by BPF_LINK_CREATE command (cgroup alt kumesi) */
+		__u32		prog_fd;	/* eBPF program to attach */
+		__u32		target_fd;	/* cgroup fd to attach to */
+		__u32		attach_type;	/* attach type */
+		__u32		flags;		/* extra flags */
+	} link_create;
+
+	struct {
+		__u32		link_fd;
+	} link_detach;
+
+	struct { /* anonymous struct used by BPF_RAW_TRACEPOINT_OPEN command */
+		__u64 name;
+		__u32 prog_fd;
+	} raw_tracepoint;
+
+	struct { /* anonymous struct for BPF_BTF_LOAD */
+		__aligned_u64	btf;
+		__aligned_u64	btf_log_buf;
+		__u32		btf_size;
+		__u32		btf_log_size;
+		__u32		btf_log_level;
+	};
+#endif
 } __attribute__((aligned(8)));
 
 /* BPF helper function descriptions:
@@ -752,7 +961,19 @@ union bpf_attr {
 	FN(get_netns_cookie),		\
 	FN(get_current_ancestor_cgroup_id),	\
 	FN(sk_assign),			\
-	FN(ktime_get_boot_ns),
+	FN(ktime_get_boot_ns),		\
+	__BPF_FUNC_MAPPER_EXT(FN)
+
+#ifndef __GENKSYMS__
+#define __BPF_FUNC_MAPPER_EXT(FN)	\
+	FN(ringbuf_output),		\
+	FN(ringbuf_reserve),		\
+	FN(ringbuf_submit),		\
+	FN(ringbuf_discard),		\
+	FN(ringbuf_query),
+#else
+#define __BPF_FUNC_MAPPER_EXT(FN)
+#endif
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -802,14 +1023,57 @@ enum bpf_func_id {
 /* BPF_FUNC_perf_event_output for sk_buff input context. */
 #define BPF_F_CTXLEN_MASK		(0xfffffULL << 32)
 
+/* BPF_FUNC_ringbuf_commit, BPF_FUNC_ringbuf_discard, and
+ * BPF_FUNC_ringbuf_output flags.
+ */
+enum {
+	BPF_RB_NO_WAKEUP		= (1ULL << 0),
+	BPF_RB_FORCE_WAKEUP		= (1ULL << 1),
+};
+
+enum {
+	BPF_SK_STORAGE_GET_F_CREATE	= (1ULL << 0),
+};
+
+/* BPF_FUNC_ringbuf_query flags */
+enum {
+	BPF_RB_AVAIL_DATA = 0,
+	BPF_RB_RING_SIZE = 1,
+	BPF_RB_CONS_POS = 2,
+	BPF_RB_PROD_POS = 3,
+};
+
+/* BPF ring buffer constants */
+enum {
+	BPF_RINGBUF_BUSY_BIT		= (1U << 31),
+	BPF_RINGBUF_DISCARD_BIT		= (1U << 30),
+	BPF_RINGBUF_HDR_SZ		= 8,
+};
+
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
 	BPF_ADJ_ROOM_NET,
 };
 
+/* Mode for BPF_FUNC_skb_load_bytes_relative helper. */
+enum bpf_hdr_start_off {
+	BPF_HDR_START_MAC,
+	BPF_HDR_START_NET,
+};
+
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
  */
+#ifndef __bpf_md_ptr
+#define __bpf_md_ptr(type, name)	\
+union {					\
+	type name;			\
+	__u64 :64;			\
+} __attribute__((aligned(8)))
+#endif
+
+struct bpf_flow_keys;
+
 struct __sk_buff {
 	__u32 len;
 	__u32 pkt_type;
@@ -838,6 +1102,15 @@ struct __sk_buff {
 	__u32 local_ip6[4];	/* Stored in network byte order */
 	__u32 remote_port;	/* Stored in network byte order */
 	__u32 local_port;	/* stored in host byte order */
+#ifndef __GENKSYMS__
+	__u32 data_meta;
+	__bpf_md_ptr(struct bpf_flow_keys *, flow_keys);
+	__u64 tstamp;
+	__u32 wire_len;
+	__u32 gso_segs;
+	__bpf_md_ptr(struct bpf_sock *, sk);
+	__u32 gso_size;
+#endif
 };
 
 struct bpf_tunnel_key {
@@ -875,6 +1148,70 @@ struct bpf_sock {
 	__u32 protocol;
 	__u32 mark;
 	__u32 priority;
+#ifndef __GENKSYMS__
+	/* IP address also allows 1 and 2 bytes access */
+	__u32 src_ip4;
+	__u32 src_ip6[4];
+	__u32 src_port;		/* host byte order */
+	__be16 dst_port;	/* network byte order */
+	__u16 :16;		/* zero padding */
+	__u32 dst_ip4;
+	__u32 dst_ip6[4];
+	__u32 state;
+	__s32 rx_queue_mapping;
+#endif
+};
+
+struct bpf_sock_addr {
+	__u32 user_family;	/* Allows 4-byte read, but no write. */
+	__u32 user_ip4;		/* Allows 1,2,4-byte read and 4-byte write.
+				 * Stored in network byte order.
+				 */
+	__u32 user_ip6[4];	/* Allows 1,2,4,8-byte read and 4,8-byte write.
+				 * Stored in network byte order.
+				 */
+	__u32 user_port;	/* Allows 1,2,4-byte read and 4-byte write.
+				 * Stored in network byte order
+				 */
+	__u32 family;		/* Allows 4-byte read, but no write */
+	__u32 type;		/* Allows 4-byte read, but no write */
+	__u32 protocol;		/* Allows 4-byte read, but no write */
+	__u32 msg_src_ip4;	/* Allows 1,2,4-byte read and 4-byte write.
+				 * Stored in network byte order.
+				 */
+	__u32 msg_src_ip6[4];	/* Allows 1,2,4,8-byte read and 4,8-byte write.
+				 * Stored in network byte order.
+				 */
+	__bpf_md_ptr(struct bpf_sock *, sk);
+};
+
+struct bpf_tcp_sock {
+	__u32 snd_cwnd;
+	__u32 srtt_us;
+	__u32 rtt_min;
+	__u32 snd_ssthresh;
+	__u32 rcv_nxt;
+	__u32 snd_nxt;
+	__u32 snd_una;
+	__u32 mss_cache;
+	__u32 ecn_flags;
+	__u32 rate_delivered;
+	__u32 rate_interval_us;
+	__u32 packets_out;
+	__u32 retrans_out;
+	__u32 total_retrans;
+	__u32 segs_in;
+	__u32 data_segs_in;
+	__u32 segs_out;
+	__u32 data_segs_out;
+	__u32 lost_out;
+	__u32 sacked_out;
+	__u64 bytes_received;
+	__u64 bytes_acked;
+	__u32 dsack_dups;
+	__u32 delivered;
+	__u32 delivered_ce;
+	__u32 icsk_retransmits;
 };
 
 #define XDP_PACKET_HEADROOM 256
@@ -905,6 +1242,43 @@ enum sk_action {
 	SK_PASS,
 };
 
+struct sk_msg_md {
+	void *data;
+	void *data_end;
+
+	__u32 family;
+	__u32 remote_ip4;	/* Stored in network byte order */
+	__u32 local_ip4;	/* Stored in network byte order */
+	__u32 remote_ip6[4];	/* Stored in network byte order */
+	__u32 local_ip6[4];	/* Stored in network byte order */
+	__u32 remote_port;	/* Stored in network byte order */
+	__u32 local_port;	/* stored in host byte order */
+};
+
+struct sk_reuseport_md {
+	/*
+	 * Start of directly accessible data. It begins from
+	 * the tcp/udp header.
+	 */
+	void *data;
+	void *data_end;		/* End of directly accessible data */
+	/*
+	 * Total length of packet (starting from the tcp/udp header).
+	 * Note that the directly accessible bytes (data_end - data)
+	 * could be less than this "len".  Those bytes could be
+	 * indirectly read by a helper "bpf_skb_load_bytes()".
+	 */
+	__u32 len;
+	/*
+	 * Eth protocol in the mac header (network byte order). e.g.
+	 * ETH_P_IP(0x0800) and ETH_P_IPV6(0x86DD)
+	 */
+	__u32 eth_protocol;
+	__u32 ip_protocol;	/* IP protocol. e.g. IPPROTO_TCP, IPPROTO_UDP */
+	__u32 bind_inany;	/* Is sock bound to an INANY address? */
+	__u32 hash;		/* A hash of the packet 4 tuples */
+};
+
 #define BPF_TAG_SIZE	8
 
 struct bpf_prog_info {
@@ -915,6 +1289,34 @@ struct bpf_prog_info {
 	__u32 xlated_prog_len;
 	__aligned_u64 jited_prog_insns;
 	__aligned_u64 xlated_prog_insns;
+	__u64 load_time;	/* ns since boottime */
+	__u32 created_by_uid;
+	__u32 nr_map_ids;
+	__aligned_u64 map_ids;
+	char name[BPF_OBJ_NAME_LEN];
+	__u32 ifindex;
+	__u32 gpl_compatible:1;
+	__u32 :31; /* alignment pad */
+	__u64 netns_dev;
+	__u64 netns_ino;
+	__u32 nr_jited_ksyms;
+	__u32 nr_jited_func_lens;
+	__aligned_u64 jited_ksyms;
+	__aligned_u64 jited_func_lens;
+	__u32 btf_id;
+	__u32 func_info_rec_size;
+	__aligned_u64 func_info;
+	__u32 nr_func_info;
+	__u32 nr_line_info;
+	__aligned_u64 line_info;
+	__aligned_u64 jited_line_info;
+	__u32 nr_jited_line_info;
+	__u32 line_info_rec_size;
+	__u32 jited_line_info_rec_size;
+	__u32 nr_prog_tags;
+	__aligned_u64 prog_tags;
+	__u64 run_time_ns;
+	__u64 run_cnt;
 } __attribute__((aligned(8)));
 
 struct bpf_map_info {
@@ -924,6 +1326,20 @@ struct bpf_map_info {
 	__u32 value_size;
 	__u32 max_entries;
 	__u32 map_flags;
+	char  name[BPF_OBJ_NAME_LEN];
+	__u32 ifindex;
+	__u32 btf_vmlinux_value_type_id;
+	__u64 netns_dev;
+	__u64 netns_ino;
+	__u32 btf_id;
+	__u32 btf_key_type_id;
+	__u32 btf_value_type_id;
+} __attribute__((aligned(8)));
+
+struct bpf_btf_info {
+	__aligned_u64 btf;
+	__u32 btf_size;
+	__u32 id;
 } __attribute__((aligned(8)));
 
 /* User bpf_sock_ops struct to access socket values and specify request ops
@@ -977,5 +1393,91 @@ enum {
 
 #define TCP_BPF_IW		1001	/* Set TCP initial congestion window */
 #define TCP_BPF_SNDCWND_CLAMP	1002	/* Set sndcwnd_clamp */
+
+struct bpf_func_info {
+	__u32	insn_off;
+	__u32	type_id;
+};
+
+struct bpf_spin_lock {
+	__u32	val;
+};
+
+struct bpf_line_info {
+	__u32	insn_off;
+	__u32	file_name_off;
+	__u32	line_off;
+	__u32	line_col;
+};
+
+struct bpf_sock_tuple {
+	union {
+		struct {
+			__be32 saddr;
+			__be32 daddr;
+			__be16 sport;
+			__be16 dport;
+		} ipv4;
+		struct {
+			__be32 saddr[4];
+			__be32 daddr[4];
+			__be16 sport;
+			__be16 dport;
+		} ipv6;
+	};
+};
+
+enum {
+	BPF_DEVCG_ACC_MKNOD	= (1ULL << 0),
+	BPF_DEVCG_ACC_READ	= (1ULL << 1),
+	BPF_DEVCG_ACC_WRITE	= (1ULL << 2),
+};
+
+enum {
+	BPF_DEVCG_DEV_BLOCK	= (1ULL << 0),
+	BPF_DEVCG_DEV_CHAR	= (1ULL << 1),
+};
+
+struct bpf_cgroup_dev_ctx {
+	/* access_type encoded as (BPF_DEVCG_ACC_* << 16) | BPF_DEVCG_DEV_* */
+	__u32 access_type;
+	__u32 major;
+	__u32 minor;
+};
+
+/* BPF_FUNC_sysctl_get_name flags. */
+enum {
+	BPF_F_SYSCTL_BASE_NAME		= (1ULL << 0),
+};
+
+struct bpf_sysctl {
+	__u32	write;		/* Sysctl is being read (= 0) or written (= 1).
+				 * Allows 1,2,4-byte read, but no write.
+				 */
+	__u32	file_pos;	/* Sysctl file position to read from, write to.
+				 * Allows 1,2,4-byte read an 4-byte write.
+				 */
+};
+
+struct bpf_sockopt {
+	__bpf_md_ptr(struct bpf_sock *, sk);
+	__bpf_md_ptr(void *, optval);
+	__bpf_md_ptr(void *, optval_end);
+
+	__s32	level;
+	__s32	optname;
+	__s32	optlen;
+	__s32	retval;
+};
+
+struct bpf_raw_tracepoint_args {
+	__u64 args[0];
+};
+
+struct bpf_perf_event_value {
+	__u64 counter;
+	__u64 enabled;
+	__u64 running;
+};
 
 #endif /* _UAPI__LINUX_BPF_H__ */

@@ -1,0 +1,24 @@
+Footer version:           1.0
+Image size:               67108864 bytes
+Original image size:      22747664 bytes
+VBMeta offset:            22749184
+VBMeta size:              2112 bytes
+--
+Minimum libavb version:   1.0
+Header Block:             256 bytes
+Authentication Block:     576 bytes
+Auxiliary Block:          1280 bytes
+Public key (sha1):        09b966db32483879a5e8ac3361237c75d9d35c58
+Algorithm:                SHA256_RSA4096
+Rollback Index:           0
+Flags:                    0
+Rollback Index Location:  0
+Release String:           'avbtool 1.1.0'
+Descriptors:
+    Hash descriptor:
+      Image Size:            22747664 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        boot
+      Salt:                  7d7bb9991e1806ab2cce1406bb636f80db9a40b8c0badd1e08cd4b013f7df36e
+      Digest:                5f4143f13e5daef276be7acef6c60bd0cc4507fbbe7ef44b489c1ca657aa007c
+      Flags:                 0

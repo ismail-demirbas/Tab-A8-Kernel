@@ -5976,22 +5976,34 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
 
 #ifdef CONFIG_CGROUP_BPF
 int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      struct bpf_cgroup_link *link,
 		      enum bpf_attach_type type, u32 flags)
 {
 	int ret;
 
 	mutex_lock(&cgroup_mutex);
-	ret = __cgroup_bpf_attach(cgrp, prog, type, flags);
+	ret = __cgroup_bpf_attach(cgrp, prog, link, type, flags);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
 int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+		      struct bpf_cgroup_link *link,
 		      enum bpf_attach_type type, u32 flags)
 {
 	int ret;
 
 	mutex_lock(&cgroup_mutex);
-	ret = __cgroup_bpf_detach(cgrp, prog, type, flags);
+	ret = __cgroup_bpf_detach(cgrp, prog, link, type, flags);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+		     union bpf_attr __user *uattr)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_query(cgrp, attr, uattr);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
