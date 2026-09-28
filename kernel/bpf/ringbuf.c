@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * ringbuf.c: BPF ring buffer
- *
- * Backport: FAZ C madde 3, 4.14 icin uyarlandi (charge modeli
- * queue_stack_maps.c ile ayni: bpf_map_memory/bpf_map_charge_init yok,
- * bpf_map_precharge_memlock + map.pages; map_meta_equal/map_btf_name/
- * map_btf_id ops alanlari yok - dusuruldu)
  */
 #include <linux/bpf.h>
 #include <linux/btf.h>

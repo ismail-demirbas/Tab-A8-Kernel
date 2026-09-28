@@ -449,10 +449,6 @@ struct bpf_local_storage_map *bpf_local_storage_map_alloc(union bpf_attr *attr)
 	smap->bucket_log = ilog2(nbuckets);
 	cost = sizeof(*smap->buckets) * nbuckets + sizeof(*smap);
 
-	/* 4.14: bpf_map_charge_init/finish yok (5.10 govdesinden farkli,
-	 * queue_stack_maps.c/ringbuf.c ile ayni uyarlama), precharge_memlock
-	 * + map.pages kullanilir.
-	 */
 	ret = bpf_map_precharge_memlock(cost >> PAGE_SHIFT);
 	if (ret < 0) {
 		kfree(smap);

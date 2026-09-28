@@ -26,11 +26,6 @@
 #include <linux/miscdevice.h>
 #include <linux/string.h>
 
-/*
- * Varsayilan engelleme listesi: WCN (WiFi/BT) SDIO wakelock'lari.
- * sdiohal_tx/rx/scan_wakelock bu Unisoc/Spreadtrum tabletinin gercek
- * WCN suruculerinden (drivers/misc/sprdwcn) geliyor.
- */
 static char bwb_wakelocks[512] =
 "sdiohal_tx_wakelock;sdiohal_rx_wakelock;sdiohal_scan_wakelock";
 

@@ -198,7 +198,7 @@ struct bpf_insn_aux_data {
 		};
 	};
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
-	u32 btf_id; /* FAZA-7: check_ctx_access -> PTR_TO_BTF_ID icin tasima alani */
+	u32 btf_id;
 	int sanitize_stack_off; /* stack slot to be cleared */
 	bool seen; /* this insn was processed by the verifier */
 	u8 alu_state; /* used in combination with alu_limit */
@@ -217,7 +217,6 @@ struct bpf_ext_analyzer_ops {
  */
 #define BPF_VERIFIER_TMP_LOG_SIZE	1024
 
-/* 5.10 log seviyesi bitleri */
 #define BPF_LOG_LEVEL1	1
 #define BPF_LOG_LEVEL2	2
 #define BPF_LOG_STATS	4

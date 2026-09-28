@@ -368,8 +368,3 @@ void xdp_return_buff(struct xdp_buff *xdp)
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
 
-/* xdp_attachment_query/flags_ok/setup kasitli olarak backport edilmedi:
- * bunlar sadece struct netdev_bpf/ndo_bpf (donanim XDP offload) implement
- * eden suruculer icin kullanilir (orn. Netronome NFP). Bu agactaki hicbir
- * surucu .ndo_bpf implement etmiyor (T618/gta8wifi donaniminda XDP offload
- * destegi yok), bu yuzden struct netdev_bpf de backport edilmedi. */

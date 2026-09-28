@@ -20,9 +20,6 @@
 #include <net/sock.h>
 #include <linux/bpf_sk_storage.h>
 
-/* cgroup_mutex EXPORT_SYMBOL_GPL ile disa acik (kernel/cgroup/cgroup.c);
- * kernel/cgroup/cgroup-internal.h bu agacta kernel/cgroup/ disindan
- * include edilmek uzere tasarlanmamis, bu yuzden yerel extern yeterli. */
 extern struct mutex cgroup_mutex;
 
 DEFINE_STATIC_KEY_FALSE(cgroup_bpf_enabled_key);
@@ -90,8 +87,6 @@ static const struct bpf_link_ops bpf_cgroup_link_lops = {
 	.show_fdinfo = bpf_cgroup_link_show_fdinfo,
 };
 
-/* E-cgroup-link ADIM 3: link_create tuketicisi. Sadece cgroup hedefli
- * attach type kumesini kapsar. */
 int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
 	struct bpf_link_primer link_primer;
@@ -154,10 +149,6 @@ void cgroup_bpf_put(struct cgroup *cgrp)
 	}
 }
 
-/* E-cgroup-link-1: 5.10 govde - pl->prog veya pl->link->link.prog dondurur.
- * Bu asamada link hicbir yerde set edilmiyor, bu yuzden davranis pl->prog
- * ile birebir ayni kalir (salt okuma noktalarinin sadelestirilmesi).
- */
 static struct bpf_prog *prog_list_prog(struct bpf_prog_list *pl)
 {
 	if (pl->prog)

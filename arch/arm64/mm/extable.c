@@ -13,7 +13,6 @@ int fixup_exception(struct pt_regs *regs)
 
 	addr = instruction_pointer(regs);
 
-	/* BPF exception tablosu once aranir, format farkli (5.10 govde) */
 	fixup = search_bpf_extables(addr);
 	if (fixup)
 		return arm64_bpf_fixup_exception(fixup, regs);

@@ -72,9 +72,6 @@ int btf_struct_access(struct bpf_verifier_log *log,
 		      u32 *next_btf_id);
 bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  int off, u32 id, u32 need_type_id);
-/* FAZA-7: RAW_TP baglaminda ctx arg erisimini BTF uzerinden dogrular
- * (5.10 govde, LSM/FEXIT/MODIFY_RETURN donus-degeri ve ctx_arg_info
- * RDONLY/RDWR_BUF yolu kapsam disi - bu backportta yalniz RAW_TP var). */
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info);

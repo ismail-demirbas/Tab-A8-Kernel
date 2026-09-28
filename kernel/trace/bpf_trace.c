@@ -96,13 +96,6 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-/* FAZ F-1 (5.10 govde niyeti, SAPMA: nofault API yok -> bu agacin
- * set_fs tabanli mekanizmasi kullanildi):
- * bpf_probe_read_kernel/_str = probe_kernel_read/strncpy_from_unsafe e
- * ince sarmalayici (zaten kernel+user KERNEL_DS ile guvenli okuyor).
- * bpf_probe_read_user = yeni access_ok+pagefault_disable+
- * __copy_from_user_inatomic (probe_write_common ile simetrik).
- * bpf_probe_read_user_str = strncpy_from_unsafe_user e sarmalayici. */
 static __always_inline int
 bpf_probe_read_user_common(void *dst, u32 size, const void __user *unsafe_ptr)
 {
@@ -1051,10 +1044,6 @@ out:
 	mutex_unlock(&bpf_event_mutex);
 }
 
-/*
- * BPF raw tracepoints (5.10 backport). Yalnizca cekirdege gomulu tracepoint
- * lar (modul destegi yok), WRITABLE yok, bpf_get_stack yok.
- */
 extern struct bpf_raw_event_map __start__bpf_raw_tp[];
 extern struct bpf_raw_event_map __stop__bpf_raw_tp[];
 
@@ -1072,7 +1061,6 @@ struct bpf_raw_event_map *bpf_get_raw_tracepoint(const char *name)
 
 void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
 {
-	/* modul tracepoint destegi yok: referans tutulmaz */
 }
 
 /*
@@ -1222,11 +1210,6 @@ const struct bpf_verifier_ops raw_tracepoint_verifier_ops = {
 const struct bpf_prog_ops raw_tracepoint_prog_ops = {
 };
 
-/* FAZA-6: 5.10 govde, btf_ctx_access henuz portlanmadigi icin
- * offset/size siniri raw_tp ile ayni (yalniz BPF_TRACE_RAW_TP, bkz.
- * check_attach_btf_id / bpf_check_attach_target). test_run tanimsiz
- * birakildi (BPF_PROG_TEST_RUN bu tip icin desteklenmiyor, boot/attach
- * yoluna etkisi yok). */
 static const struct bpf_func_proto *
 tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -1253,7 +1236,6 @@ static bool tracing_prog_is_valid_access(int off, int size,
 		return false;
 	if (off % size != 0)
 		return false;
-	/* FAZA-7: artik gercek BTF tabanli arg tipi cozumu */
 	return btf_ctx_access(off, size, type, prog, info);
 }
 

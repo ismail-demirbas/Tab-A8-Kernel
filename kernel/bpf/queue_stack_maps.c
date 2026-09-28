@@ -3,8 +3,6 @@
  * queue_stack_maps.c: BPF queue and stack maps
  *
  * Copyright (c) 2018 Politecnico di Torino
- * Backport: FAZ C madde 2, 4.14 icin uyarlandi (charge_memlock modeli,
- * bpf_map_ops meta_equal/btf_name/btf_id alanlari yok - dusuruldu)
  */
 #include <linux/bpf.h>
 #include <linux/list.h>

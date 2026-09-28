@@ -379,8 +379,6 @@ int bpf_get_file_flag(int flags)
 
 #define BPF_LINK_CREATE_LAST_FIELD link_create.flags
 
-/* E-cgroup-link ADIM 3: minimal dispatch, SADECE cgroup attach type
- * kumesini kapsar. */
 static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
 					      enum bpf_attach_type attach_type);
 
@@ -1750,9 +1748,6 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 			   enum bpf_attach_type expected_attach_type,
 			   u32 btf_id, u32 prog_fd)
 {
-	/* LSM/STRUCT_OPS/EXT prog tipleri bizde yok. TRACING icin yalniz
-	 * BPF_TRACE_RAW_TP (trampolinesiz) destekleniyor: btf_id zorunlu,
-	 * prog_fd (freplace/fentry hedef programi) desteklenmiyor. */
 	if (btf_id || prog_fd) {
 		if (prog_type != BPF_PROG_TYPE_TRACING ||
 		    expected_attach_type != BPF_TRACE_RAW_TP ||
@@ -2701,9 +2696,6 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_TRACING:
-		/* FAZA-5 (5.10 govde, LSM/EXT/fentry-fexit disarida):
-		 * attach noktasi program yuklenirken attach_btf_id ile
-		 * belirlendi (FAZA-3), kullanicidan isim istenmez. */
 		if (attr->raw_tracepoint.name) {
 			err = -EINVAL;
 			goto out_put_prog;

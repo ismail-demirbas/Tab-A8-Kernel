@@ -203,7 +203,6 @@ static u32 log_level, log_size, log_len;
 
 static DEFINE_MUTEX(bpf_verifier_lock);
 
-/* vmlinux BTF: NULL = parse edilmedi / DEBUG_INFO_BTF kapali, ERR_PTR = parse hatasi */
 struct btf *btf_vmlinux;
 
 /* log_level controls verbosity level of eBPF verifier.
@@ -1029,10 +1028,6 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				verbose(env,
 					"Func#%d is global and valid. Skipping.\n",
 					subprog);
-			/* SAPMA (5.10 de yok): argumanlar okundu isaretlenir.
-			 * Cagri sonrasi R1-R5 silindigi icin okuma isareti
-			 * olmazsa pruning arguman TIPINI karsilastirmaz.
-			 */
 			for (i = BPF_REG_1; i <= BPF_REG_5; i++) {
 				if (caller->regs[i].type == NOT_INIT)
 					continue;
@@ -2477,8 +2472,6 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			regs[value_regno].type = reg_type;
 			if (reg_type_may_be_null(reg_type))
 				regs[value_regno].id = ++env->id_gen;
-			/* FAZA-7: ctx uzerinden gelen PTR_TO_BTF_ID icin
-			 * check_ctx_access tarafindan tasinan btf_id */
 			if (reg_type == PTR_TO_BTF_ID)
 				regs[value_regno].btf_id =
 					env->insn_aux_data[insn_idx].btf_id;
@@ -2661,9 +2654,6 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 	return 0;
 }
 
-/* forward-decl: gercek tanimi asagida (Asama C-1/N, ~satir 3459),
- * check_func_arg() bu dosyada ondan once kullaniyor
- */
 static bool type_is_pkt_pointer(enum bpf_reg_type type);
 
 static bool arg_type_is_mem_ptr(enum bpf_arg_type type)
@@ -2919,7 +2909,6 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			return err;
 	} else if (arg_type == ARG_PTR_TO_SOCK_COMMON) {
 		expected_type = PTR_TO_SOCK_COMMON;
-		/* fullsock ve tcp_sock, sock_common'a dönüştürülebilir */
 		if (type != expected_type &&
 			type != PTR_TO_SOCKET &&
 			type != PTR_TO_TCP_SOCK)
@@ -3234,10 +3223,6 @@ static bool check_arg_pair_ok(const struct bpf_func_proto *fn)
 	return true;
 }
 
-/* forward-decl: gercek tanimi (type_is_pkt_pointer'a bagimli) asagida,
- * find_good_pkt_pointers oncesinde (Asama C-1/N) - __clear_all_pkt_pointers
- * bu dosyada ondan once kullaniyor
- */
 static bool reg_is_pkt_pointer_any(const struct bpf_reg_state *reg);
 
 /* Packet data might have moved, any old PTR_TO_PACKET[_END] are now invalid,
@@ -4686,7 +4671,6 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 	if (dst_reg->type != SCALAR_VALUE)
 		ptr_reg = dst_reg;
 	else
-		/* dst_reg min/max baska register lara yanlis yayilmasin */
 		dst_reg->id = 0;
 	if (BPF_SRC(insn->code) == BPF_X) {
 		src_reg = &regs[insn->src_reg];
@@ -4836,7 +4820,6 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 				 */
 				if (regs[insn->src_reg].type == SCALAR_VALUE &&
 				    !regs[insn->src_reg].id)
-					/* src ve dst ayni id: find_equal_scalars() min/max yayar */
 					regs[insn->src_reg].id = ++env->id_gen;
 				regs[insn->dst_reg] = regs[insn->src_reg];
 				regs[insn->dst_reg].live |= REG_LIVE_WRITTEN;
@@ -5304,7 +5287,6 @@ static void mark_map_regs(struct bpf_func_state *state, u32 regno,
 	int i;
 
 	if (ref_obj_id && ref_obj_id == id && is_null)
-		/* "== NULL" dalinda: null-check'ten once kimse birakamaz */
 		WARN_ON_ONCE(release_reference_state(state, id));
 
 	for (i = 0; i < MAX_BPF_REG; i++)
@@ -6373,9 +6355,6 @@ static bool regsafe(struct bpf_reg_state *rold, struct bpf_reg_state *rcur,
 	switch (rold->type) {
 	case SCALAR_VALUE:
 		if (rcur->type == SCALAR_VALUE) {
-			/* eski durum id ile bagli register a dayanarak guvenli bulunduysa,
-			 * yeni durumda da ayni iliski olmali (find_equal_scalars)
-			 */
 			if (rold->id &&
 			    (!rcur->id || !check_ids(rold->id, rcur->id, idmap)))
 				return false;
@@ -7487,7 +7466,6 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 			convert_ctx_access = bpf_tcp_sock_convert_ctx_access;
 			break;
 		case PTR_TO_BTF_ID:
-			/* STRUCT_OPS bu agacta kapsam disi, yazma her zaman reddedilir (backport, 5.10 govde sadelestirilmis) */
 			if (type == BPF_READ) {
 				insn->code = BPF_LDX | BPF_PROBE_MEM |
 					BPF_SIZE((insn)->code);
@@ -7975,10 +7953,6 @@ static void free_states(struct bpf_verifier_env *env)
 	kfree(env->explored_states);
 }
 
-/* function-by-function dogrulamada iki calistirma arasinda pruning durumunu
- * sifirlar. free_states() den farki: dizi ve check_cfg nin koydugu
- * STATE_LIST_MARK prune noktalari korunur.
- */
 static void clear_explored_states(struct bpf_verifier_env *env)
 {
 	struct bpf_verifier_state_list *sl, *sln;
@@ -8006,9 +7980,6 @@ static int do_check_run(struct bpf_verifier_env *env, int subprog)
 	int ret;
 
 	ret = do_check_common(env, subprog);
-	/* her fonksiyon dogrulamasi temiz baslar: cur_state, DFS yigini ve
-	 * pruning listeleri bir sonraki calistirmaya tasinmaz
-	 */
 	if (env->cur_state) {
 		free_verifier_state(env->cur_state, true);
 		env->cur_state = NULL;
@@ -8061,11 +8032,6 @@ static void adjust_btf_func(struct bpf_verifier_env *env)
 		aux->func_info[i].insn_off = env->subprog_info[i].start;
 }
 
-/* FAZA-3: 5.10 govdesinin sadelestirilmis hali. tgt_prog daima NULL
- * (bpf_prog_load_check_attach halihazirda prog_fd!=0'i reddediyor),
- * yalniz BPF_TRACE_RAW_TP dali portlandi; FENTRY/FEXIT/ITER dallari
- * trampoline/bpf_iter gerektirdigi icin kapsam disi birakildi.
- */
 int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    const struct bpf_prog *prog,
 			    const struct bpf_prog *tgt_prog,
@@ -8278,7 +8244,6 @@ skip_full_check:
 	if (ret == 0)
 		ret = fixup_call_args(env);
 
-	/* ANDROID: log dolu olsa da yukleme basarisiz sayilmaz (5.10 android ile ayni) */
 	if (env->log.level && !env->log.ubuf) {
 		ret = -EFAULT;
 		goto free_log_buf;

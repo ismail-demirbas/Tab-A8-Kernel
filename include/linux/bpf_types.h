@@ -42,8 +42,6 @@ BPF_PROG_TYPE(BPF_PROG_TYPE_PERF_EVENT, perf_event,
 	      struct bpf_perf_event_data, struct bpf_perf_event_data_kern)
 BPF_PROG_TYPE(BPF_PROG_TYPE_RAW_TRACEPOINT, raw_tracepoint,
 	      struct bpf_raw_tracepoint_args, u64)
-/* FAZA-6: yalniz BPF_TRACE_RAW_TP attach yolu (bkz. kernel/trace/bpf_trace.c
- * tracing_verifier_ops), FENTRY/FEXIT/ITER kapsam disi. */
 BPF_PROG_TYPE(BPF_PROG_TYPE_TRACING, tracing,
 	      void *, void *)
 #endif

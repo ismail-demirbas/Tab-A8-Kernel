@@ -160,7 +160,5 @@ struct xdp_attachment_info {
 	u32 flags;
 };
 
-/* xdp_attachment_query/flags_ok/setup ve struct netdev_bpf kasitli
- * olarak backport edilmedi -- bkz. net/core/xdp.c ustundeki not */
 
 #endif /* __LINUX_NET_XDP_H__ */

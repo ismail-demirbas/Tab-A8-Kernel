@@ -13,11 +13,6 @@
 
 extern spinlock_t reuseport_lock;
 
-/*
- * inet_rcv_saddr_any() - 4.19'dan izole shim (net/ipv4/inet_connection_sock.c
- * no-touch listesinde oldugu icin oraya dokunmadan, birebir ayni mantikla
- * burada static inline olarak eklendi).
- */
 static inline bool inet_rcv_saddr_any(const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)

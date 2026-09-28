@@ -848,9 +848,6 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 		goto err;
 
 	if (unlikely(l_old && (map_flags & BPF_F_LOCK))) {
-		/* 5.10 govde: lock-free fast path yok (4.14 raw_spin_lock_irqsave
-		 * mimarisi), bucket lock zaten alinmis - elemani yerinde guncelle
-		 */
 		copy_map_value_locked(map,
 				      l_old->key + round_up(key_size, 8),
 				      value, false);

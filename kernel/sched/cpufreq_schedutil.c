@@ -95,7 +95,6 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time,
 {
 	s64 delta_ns;
 
-	/* Lazy init: rate limitler set edilmediyse varsayilan pil degerlerini uygula */
 	if (unlikely(!sg_policy->min_rate_limit_ns && sg_policy->tunables)) {
 		unsigned int cpu = sg_policy->policy->cpu;
 		if (cpu >= 6) {

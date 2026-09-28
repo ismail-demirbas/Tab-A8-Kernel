@@ -40,7 +40,6 @@ static int sk_storage_delete(struct sock *sk, struct bpf_map *map)
 	return 0;
 }
 
-/* Called by __sk_destruct() (net/core/sock.c, CONFIG_BPF_SYSCALL altinda) */
 void bpf_sk_storage_free(struct sock *sk)
 {
 	struct bpf_local_storage_elem *selem;
@@ -95,13 +94,6 @@ static int notsupp_get_next_key(struct bpf_map *map, void *key,
 	return -ENOTSUPP;
 }
 
-/* UYARLAMA: 5.10'daki bpf_sk_storage_clone/diag/iterator yolu
- * bpf_map_inc_not_zero() (static, syscall.c disina export edilmemis),
- * bpf_iter altyapisi ve netlink sock_diag entegrasyonu 4.14'te
- * bulunmadigi icin dusuruldu. Yalnizca fd-tabanli syscall erisimi
- * (BPF_MAP_LOOKUP/UPDATE/DELETE_ELEM ile SK fd key) ve cg_sock
- * BPF helper yolu (bpf_sk_storage_get/delete) mevcut.
- */
 static void *bpf_fd_sk_storage_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_local_storage_data *sdata;
@@ -155,14 +147,6 @@ static int bpf_fd_sk_storage_delete_elem(struct bpf_map *map, void *key)
 	return err;
 }
 
-/* UYARLAMA (5.10 farki): arg3_type ARG_PTR_TO_MAP_VALUE_OR_NULL 4.14te
- * yok (verifier check_func_arg'a yeni dal eklemek gerekirdi, kapsam
- * disi birakildi -> ayri gorev). Bunun yerine ARG_PTR_TO_MAP_VALUE
- * kullanilir: value argumani her zaman gecerli bir stack pointer
- * olmali (NULL gecilemez), F_CREATE olmadan da value dolu gecilir
- * ama okunmaz. Islevsel kirilma yok, sadece cagiran taraf her zaman
- * bir value buffer'i ayirmali.
- */
 BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 	   void *, value, u64, flags)
 {
@@ -249,9 +233,6 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_owner_storage_ptr = sk_storage_ptr,
 };
 
-/* cg_sock (BPF_PROG_TYPE_CGROUP_SOCK) icin: ctx = struct sock (5.10
- * yorumuyla ayni), BTF-ID sock_common yolu FAZ B.5'e kaldi.
- */
 const struct bpf_func_proto bpf_sk_storage_get_cg_sock_proto = {
 	.func		= bpf_sk_storage_get,
 	.gpl_only	= false,

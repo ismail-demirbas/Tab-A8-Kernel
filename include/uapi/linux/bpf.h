@@ -341,7 +341,6 @@ enum bpf_attach_type {
 #define BPF_F_RDONLY		(1U << 3)
 #define BPF_F_WRONLY		(1U << 4)
 
-/* 5.10 map flags (sabit ekleme, davranissiz) */
 #define BPF_F_STACK_BUILD_ID	(1U << 5)
 #define BPF_F_ZERO_SEED	(1U << 6)
 #define BPF_F_RDONLY_PROG	(1U << 7)
@@ -477,7 +476,7 @@ union bpf_attr {
 		__u32		old_prog_fd;
 	} link_update;
 
-	struct { /* struct used by BPF_LINK_CREATE command (cgroup alt kumesi) */
+	struct {
 		__u32		prog_fd;	/* eBPF program to attach */
 		__u32		target_fd;	/* cgroup fd to attach to */
 		__u32		attach_type;	/* attach type */

@@ -35,9 +35,6 @@ struct xdp_buff {
 #include <uapi/linux/filter.h>
 #include <uapi/linux/bpf.h>
 
-/* BPF_LDX index for fault-tolerant kernel access (backport, 5.10 govde).
- * Sadece internal insn->code icinde BPF_MODE olarak kullanilir, UAPI
- * BPF_XADD (0xc0) ile cakismaz. */
 #define BPF_PROBE_MEM	0x20
 
 struct sk_buff;

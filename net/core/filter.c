@@ -1815,7 +1815,6 @@ struct redirect_info {
 	u32 kern_flags;
 };
 
-/* flags for redirect_info kern_flags, 4.19'dan birebir */
 #define BPF_RI_F_RF_NO_DIRECT	BIT(0)	/* no napi_direct on return_frame */
 
 static DEFINE_PER_CPU(struct redirect_info, redirect_info);
@@ -4754,7 +4753,7 @@ bool bpf_tcp_sock_is_valid_access(int off, int size, enum bpf_access_type type,
 	switch (off) {
 	case offsetof(struct bpf_tcp_sock, dsack_dups):
 	case offsetof(struct bpf_tcp_sock, delivered_ce):
-		return false; /* 4.14 tcp_sock'ta yok */
+		return false;
 	case offsetof(struct bpf_tcp_sock, bytes_received):
 	case offsetof(struct bpf_tcp_sock, bytes_acked):
 		return size == sizeof(__u64);
@@ -4778,7 +4777,6 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sock, family):
 	case offsetof(struct bpf_sock, type):
 	case offsetof(struct bpf_sock, protocol):
-		/* 4.14: sk_type/sk_protocol bit alani, mevcut donusturucu */
 		return sock_filter_convert_ctx_access(type, si, insn_buf,
 							  prog, target_size);
 
@@ -5824,8 +5822,6 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_msg_cork_bytes_proto;
 	case BPF_FUNC_msg_pull_data:
 		return &bpf_msg_pull_data_proto;
-	/* BPF_FUNC_get_local_storage: CGROUP_STORAGE backport'u bekliyor,
-	 * erteleniyor (bkz. NOTES.txt, 🔴 grup madde 3) */
 	default:
 		return bpf_base_func_proto(func_id);
 	}

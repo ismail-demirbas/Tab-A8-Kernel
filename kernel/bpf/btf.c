@@ -395,8 +395,6 @@ static bool btf_type_nosize_or_null(const struct btf_type *t)
 	return !t || btf_type_nosize(t);
 }
 
-/* FAZA-2: 5.10de var, 4.14te yok. check_attach_btf_id/bpf_check_attach_target
- * icin (raw tracepoint typedef kontrolu). */
 bool btf_type_is_typedef(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_TYPEDEF;
@@ -3501,7 +3499,6 @@ struct btf *btf_parse_vmlinux(void)
 errout:
 	btf_verifier_env_free(env);
 	if (btf) {
-		/* btf->data .BTF bolumunu gosterir: btf_free() kvfree(data) yapardi */
 		kvfree(btf->types);
 		kfree(btf);
 	}
@@ -4081,10 +4078,8 @@ static bool btf_type_is_small_int(const struct btf_type *t)
 
 static bool is_string_ptr(struct btf *btf, const struct btf_type *t)
 {
-	/* t zaten pointer olarak gelir */
 	t = btf_type_by_id(btf, t->type);
 
-	/* const nitelendiricisine izin ver */
 	if (BTF_INFO_KIND(t->info) == BTF_KIND_CONST)
 		t = btf_type_by_id(btf, t->type);
 
@@ -4092,12 +4087,6 @@ static bool is_string_ptr(struct btf *btf, const struct btf_type *t)
 	return btf_type_is_int(t) && t->size == 1;
 }
 
-/* FAZA-7: 5.10 govde, daraltilmis (yalniz BPF_TRACE_RAW_TP; tgt_prog daima
- * NULL oldugundan EXT/freplace dali ve LSM/FEXIT/MODIFY_RETURN donus-degeri
- * erisimi, ayrica 4.14 bpf_prog_aux ta olmayan ctx_arg_info (RDONLY/RDWR_BUF)
- * yolu kapsam disi birakildi - bkz. bpf_check_attach_target). info->log yok
- * (4.14 struct bpf_insn_access_aux da bu alan yok), hata durumunda sessizce
- * false donuyor. */
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info)
@@ -4113,7 +4102,6 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	args = (const struct btf_param *)(t + 1);
 	nr_args = t ? btf_type_vlen(t) : 5;
 	if (prog->aux->attach_btf_trace) {
-		/* btf_trace_##name typedef indeki ilk void *__data atlanir */
 		args++;
 		nr_args--;
 	}
@@ -4122,7 +4110,6 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		return false;
 
 	if (!t)
-		/* Varsayilan prog, 5 arg */
 		return true;
 	t = btf_type_by_id(btf, args[arg].type);
 
@@ -4134,7 +4121,6 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		return false;
 
 	if (t->type == 0)
-		/* void* - verifier icin skalerle ayni, ileri yurunmez */
 		return true;
 
 	if (is_string_ptr(btf, t))

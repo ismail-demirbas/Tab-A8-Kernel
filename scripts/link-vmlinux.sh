@@ -233,10 +233,6 @@ gen_btf()
 	${OBJCOPY} --only-section=.BTF --set-section-flags .BTF=alloc,readonly \
 		--strip-all ${1} ${2} 2>/dev/null
 
-	# ${1} (ld -shared ciktisi) ET_DYN tipinde; ld.lld final -shared linkte
-	# ET_DYN girdi dosyalarini paylasimli bagimlilik sanip section icerigini
-	# yok sayiyor (gorgul test: ET_DYN iken .BTF final vmlinux'ta 0 bayt,
-	# e_type ET_REL yapilinca dolu geliyor). e_type ofset 16, 2 bayt LE.
 	printf '\x01\x00' | dd of=${2} bs=1 seek=16 count=2 conv=notrunc status=none
 
 	btf_bin_sz=$(wc -c < ${2})

@@ -64,17 +64,14 @@ struct bpf_map_ops {
 	int (*map_direct_value_addr)(const struct bpf_map *map,
 				     u64 *imm, u32 off);
 
-	/* funcs for queue and stack maps (FAZ C madde 2) */
 	int (*map_push_elem)(struct bpf_map *map, void *value, u64 flags);
 	int (*map_pop_elem)(struct bpf_map *map, void *value);
 	int (*map_peek_elem)(struct bpf_map *map, void *value);
 
-	/* funcs for ring buffer map (FAZ C madde 3) */
 	int (*map_mmap)(struct bpf_map *map, struct vm_area_struct *vma);
 	unsigned int (*map_poll)(struct bpf_map *map, struct file *filp,
 				 struct poll_table_struct *pts);
 
-	/* funcs for bpf_local_storage maps (FAZ C madde 4, sk/inode storage) */
 	int (*map_local_storage_charge)(struct bpf_local_storage_map *smap,
 					void *owner, u32 size);
 	void (*map_local_storage_uncharge)(struct bpf_local_storage_map *smap,
@@ -279,7 +276,7 @@ struct bpf_insn_access_aux {
 	enum bpf_reg_type reg_type;
 	int ctx_field_size;
 #ifndef __GENKSYMS__
-	u32 btf_id; /* FAZA-7: PTR_TO_BTF_ID donen ctx alanlari icin */
+	u32 btf_id;
 #endif
 };
 
@@ -368,11 +365,6 @@ struct bpf_link_ops {
 	void (*show_fdinfo)(const struct bpf_link *link, struct seq_file *seq);
 };
 
-/* E-cgroup-link BUILD FIX 3: dogru cozum - bpf.h -> bpf-cgroup.h tek yonlu
- * bagimliligi (orijinal 4.14 tasarimi, MAX_BPF_CGROUP_STORAGE_TYPE icin)
- * korunuyor; struct bpf_cgroup_link'in TAM tanimi (struct bpf_link link;
- * icerdigi icin struct bpf_link'ten SONRA olmali) bpf-cgroup.h'den buraya
- * tasindi, bpf-cgroup.h'de sadece forward-declare birakildi. */
 struct bpf_cgroup_link {
 	struct bpf_link link;
 	struct cgroup *cgroup;
@@ -444,7 +436,6 @@ struct bpf_prog_aux {
 	struct bpf_func_info_aux *func_info_aux;
 #endif
 	struct bpf_line_info *linfo;
-	/* fault-tolerant kernel access icin exception table (backport, 5.10 govde) */
 	struct exception_table_entry *extable;
 	u32 num_exentries;
 	u32 func_info_cnt;
@@ -859,9 +850,6 @@ extern const struct bpf_func_proto bpf_sock_map_update_proto;
 void bpf_user_rnd_init_once(void);
 u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 
-/* REUSEPORT_SOCKARRAY backport tamamlandi (kernel/bpf/reuseport_array.c),
- * gercek implementasyon orada. Bu artik sadece prototip.
- */
 void bpf_sk_reuseport_detach(struct sock *sk);
 int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
 				       void *value);
