@@ -1313,9 +1313,18 @@ struct net_device_ops {
 						       int needed_headroom);
 	int			(*ndo_xdp)(struct net_device *dev,
 					   struct netdev_xdp *xdp);
+#ifdef __GENKSYMS__
 	int			(*ndo_xdp_xmit)(struct net_device *dev,
 						struct xdp_buff *xdp);
+#else
+	int			(*ndo_xdp_xmit)(struct net_device *dev, int n,
+						struct xdp_frame **xdp,
+						u32 flags);
+#endif
 	void			(*ndo_xdp_flush)(struct net_device *dev);
+#ifndef __GENKSYMS__
+	struct net_device *	(*ndo_get_peer_dev)(struct net_device *dev);
+#endif
 };
 
 /**
@@ -1910,6 +1919,9 @@ struct net_device {
 	struct lock_class_key	*qdisc_tx_busylock;
 	struct lock_class_key	*qdisc_running_key;
 	bool			proto_down;
+#ifndef __GENKSYMS__
+	struct xdp_dev_bulk_queue __percpu *xdp_bulkq;
+#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

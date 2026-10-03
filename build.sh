@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Terminal colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
 export CROSS_COMPILE=$(pwd)/toolchain/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 export ARCH=arm64
 export CLANG_TOOL_PATH=$(pwd)/toolchain/clang/host/linux-x86/clang-r383902/bin/
@@ -16,7 +21,7 @@ make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y CC=clang LD=ld.lld ARCH=arm64
 
 if [ $? -ne 0 ]; then
     echo "-----------------------------------------------"
-    echo "Kernel build failed!"
+    echo -e "${RED}Kernel build failed!${NC}"
     echo "-----------------------------------------------"
     exit 1
 fi
@@ -57,7 +62,7 @@ build_boot() {
         "$RAMDISK_GZ"
 
     if [ $? -ne 0 ]; then
-        echo "Ramdisk compression failed for $NAME!"
+        echo -e "${RED}Ramdisk compression failed for $NAME!${NC}"
         return 1
     fi
 
@@ -80,7 +85,7 @@ build_boot() {
         --output "$PAYLOAD"
 
     if [ $? -ne 0 ]; then
-        echo "mkbootimg failed for $NAME!"
+        echo -e "${RED}mkbootimg failed for $NAME!${NC}"
         rm -f "$RAMDISK_GZ" "$PAYLOAD"
         return 1
     fi
@@ -91,7 +96,7 @@ build_boot() {
         "$OUTPUT"
 
     if [ $? -ne 0 ]; then
-        echo "AVB packaging failed for $NAME!"
+        echo -e "${RED}AVB packaging failed for $NAME!${NC}"
         rm -f "$RAMDISK_GZ" "$PAYLOAD"
         return 1
     fi
@@ -106,5 +111,5 @@ build_boot "X205" "SRPUI28A006" "$DTB_RAMDISK_DIR/sm-x205" || exit 1
 build_boot "X207" "SRPUJ01A006" "$DTB_RAMDISK_DIR/sm-x207" || exit 1
 
 echo "-----------------------------------------------"
-echo "Build finished successfully!"
+echo -e "${GREEN}[OK] Build finished successfully!${NC}"
 echo "-----------------------------------------------"

@@ -86,6 +86,7 @@ bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 void bpf_local_storage_map_free(struct bpf_local_storage_map *smap);
 
 int bpf_local_storage_map_check_btf(const struct bpf_map *map,
+				    const struct btf *btf,
 				    const struct btf_type *key_type,
 				    const struct btf_type *value_type);
 

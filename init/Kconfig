@@ -2067,3 +2067,30 @@ config ASN1
 	  functions to call on what tags.
 
 source "kernel/Kconfig.locks"
+
+choice
+	prompt "Fake uname release for BPF loader/netd (root)"
+	default FAKE_UNAME_NONE
+
+config FAKE_UNAME_NONE
+	bool "None (real release)"
+
+config FAKE_UNAME_5_4
+	bool "5.4.200"
+
+config FAKE_UNAME_5_10
+	bool "5.10.200"
+
+config FAKE_UNAME_5_15
+	bool "5.15.200"
+
+config FAKE_UNAME_6_1
+	bool "6.1.200"
+
+config FAKE_UNAME_6_6
+	bool "6.6.200"
+
+config FAKE_UNAME_6_12
+	bool "6.12.200"
+
+endchoice

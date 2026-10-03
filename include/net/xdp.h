@@ -66,6 +66,10 @@ struct xdp_rxq_info {
 #ifdef __GENKSYMS__
 struct xdp_buff;
 #else
+struct xdp_txq_info {
+	struct net_device *dev;
+};
+
 struct xdp_buff {
 	void *data;
 	void *data_end;
@@ -73,6 +77,7 @@ struct xdp_buff {
 	void *data_hard_start;
 	unsigned long handle;
 	struct xdp_rxq_info *rxq;
+	struct xdp_txq_info *txq;
 };
 #endif
 
@@ -86,6 +91,12 @@ struct xdp_frame {
 	 */
 	struct xdp_mem_info mem;
 	struct net_device *dev_rx; /* used by cpumap */
+};
+
+struct xdp_cpumap_stats {
+	unsigned int redirect;
+	unsigned int pass;
+	unsigned int drop;
 };
 
 /* Clear kernel pointers in xdp_frame */
@@ -128,6 +139,12 @@ struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
 	return xdp_frame;
 }
 
+static inline
+struct xdp_frame *xdp_convert_buff_to_frame(struct xdp_buff *xdp)
+{
+	return convert_to_xdp_frame(xdp);
+}
+
 void xdp_return_frame(struct xdp_frame *xdpf);
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf);
 void xdp_return_buff(struct xdp_buff *xdp);
@@ -160,5 +177,7 @@ struct xdp_attachment_info {
 	u32 flags;
 };
 
+
+#define DEV_MAP_BULK_SIZE 16
 
 #endif /* __LINUX_NET_XDP_H__ */

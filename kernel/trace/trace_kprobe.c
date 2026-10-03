@@ -1566,3 +1566,34 @@ end:
 late_initcall(kprobe_trace_self_tests_init);
 
 #endif
+
+#ifdef CONFIG_PERF_EVENTS
+int bpf_get_kprobe_info(const struct perf_event *event, u32 *fd_type,
+			const char **symbol, u64 *probe_offset,
+			u64 *probe_addr, bool perf_type_tracepoint)
+{
+	const char *pevent = trace_event_name(event->tp_event);
+	const char *group = event->tp_event->class->system;
+	struct trace_kprobe *tk;
+
+	if (perf_type_tracepoint)
+		tk = find_trace_kprobe(pevent, group);
+	else
+		tk = container_of(event->tp_event, struct trace_kprobe, tp.call);
+	if (!tk)
+		return -EINVAL;
+
+	*fd_type = trace_kprobe_is_return(tk) ? BPF_FD_TYPE_KRETPROBE
+					      : BPF_FD_TYPE_KPROBE;
+	if (tk->symbol) {
+		*symbol = tk->symbol;
+		*probe_offset = tk->rp.kp.offset;
+		*probe_addr = 0;
+	} else {
+		*symbol = NULL;
+		*probe_offset = 0;
+		*probe_addr = (unsigned long)tk->rp.kp.addr;
+	}
+	return 0;
+}
+#endif	/* CONFIG_PERF_EVENTS */

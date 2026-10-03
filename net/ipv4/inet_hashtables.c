@@ -27,6 +27,7 @@
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/sock_reuseport.h>
+#include <linux/filter.h>
 
 static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 			const __u16 lport, const __be32 faddr,
@@ -207,6 +208,34 @@ static inline int compute_score(struct sock *sk, struct net *net,
  * wildcarded during the search since they can never be otherwise.
  */
 
+static inline struct sock *inet_lookup_run_bpf(struct net *net,
+					       struct inet_hashinfo *hashinfo,
+					       struct sk_buff *skb, int doff,
+					       __be32 saddr, __be16 sport,
+					       __be32 daddr, u16 hnum)
+{
+	struct sock *sk, *reuse_sk;
+	bool no_reuseport;
+
+	if (hashinfo != &tcp_hashinfo)
+		return NULL; /* only TCP is supported */
+
+	no_reuseport = bpf_sk_lookup_run_v4(net, IPPROTO_TCP,
+					    saddr, sport, daddr, hnum, &sk);
+	if (no_reuseport || IS_ERR_OR_NULL(sk))
+		return sk;
+
+	/* SAPMA: 5.10 inet_lookup_reuseport() yok, govdesi acik yazildi */
+	if (sk->sk_reuseport) {
+		reuse_sk = reuseport_select_sock(sk,
+				inet_ehashfn(net, daddr, hnum, saddr, sport),
+				skb, doff);
+		if (reuse_sk)
+			sk = reuse_sk;
+	}
+	return sk;
+}
+
 /* called with rcu_read_lock() : No refcount taken on the socket */
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
@@ -222,6 +251,14 @@ struct sock *__inet_lookup_listener(struct net *net,
 	struct sock *sk, *result = NULL;
 	struct hlist_nulls_node *node;
 	u32 phash = 0;
+
+	/* Lookup redirect from BPF */
+	if (static_branch_unlikely(&bpf_sk_lookup_enabled)) {
+		result = inet_lookup_run_bpf(net, hashinfo, skb, doff,
+					     saddr, sport, daddr, hnum);
+		if (result)
+			goto done;
+	}
 
 	sk_nulls_for_each_rcu(sk, node, &ilb->nulls_head) {
 		score = compute_score(sk, net, hnum, daddr,
@@ -246,6 +283,9 @@ struct sock *__inet_lookup_listener(struct net *net,
 			phash = next_pseudo_random32(phash);
 		}
 	}
+done:
+	if (IS_ERR(result))
+		return NULL;
 	return result;
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);

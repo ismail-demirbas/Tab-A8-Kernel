@@ -16,9 +16,9 @@ BPF_PROG_TYPE(BPF_PROG_TYPE_CGROUP_SOCK, cg_sock,
 	      struct bpf_sock, struct sock)
 BPF_PROG_TYPE(BPF_PROG_TYPE_CGROUP_SOCK_ADDR, cg_sock_addr,
 	      struct bpf_sock_addr, struct bpf_sock_addr_kern)
-BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_IN, lwt_inout,
+BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_IN, lwt_in,
 	      struct __sk_buff, struct sk_buff)
-BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_OUT, lwt_inout,
+BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_OUT, lwt_out,
 	      struct __sk_buff, struct sk_buff)
 BPF_PROG_TYPE(BPF_PROG_TYPE_LWT_XMIT, lwt_xmit,
 	      struct __sk_buff, struct sk_buff)
@@ -27,11 +27,15 @@ BPF_PROG_TYPE(BPF_PROG_TYPE_SOCK_OPS, sock_ops,
 BPF_PROG_TYPE(BPF_PROG_TYPE_SK_SKB, sk_skb,
 	      struct __sk_buff, struct sk_buff)
 BPF_PROG_TYPE(BPF_PROG_TYPE_SK_MSG, sk_msg,
-	      struct sk_msg_md, struct sk_msg_buff)
+	      struct sk_msg_md, struct sk_msg)
+BPF_PROG_TYPE(BPF_PROG_TYPE_FLOW_DISSECTOR, flow_dissector,
+	      struct __sk_buff, struct bpf_flow_dissector)
 #endif
 #ifdef CONFIG_INET
 BPF_PROG_TYPE(BPF_PROG_TYPE_SK_REUSEPORT, sk_reuseport,
 	      struct sk_reuseport_md, struct sk_reuseport_kern)
+BPF_PROG_TYPE(BPF_PROG_TYPE_SK_LOOKUP, sk_lookup,
+	      struct bpf_sk_lookup, struct bpf_sk_lookup_kern)
 #endif
 #ifdef CONFIG_BPF_EVENTS
 BPF_PROG_TYPE(BPF_PROG_TYPE_KPROBE, kprobe,
@@ -41,6 +45,8 @@ BPF_PROG_TYPE(BPF_PROG_TYPE_TRACEPOINT, tracepoint,
 BPF_PROG_TYPE(BPF_PROG_TYPE_PERF_EVENT, perf_event,
 	      struct bpf_perf_event_data, struct bpf_perf_event_data_kern)
 BPF_PROG_TYPE(BPF_PROG_TYPE_RAW_TRACEPOINT, raw_tracepoint,
+	      struct bpf_raw_tracepoint_args, u64)
+BPF_PROG_TYPE(BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE, raw_tracepoint_writable,
 	      struct bpf_raw_tracepoint_args, u64)
 BPF_PROG_TYPE(BPF_PROG_TYPE_TRACING, tracing,
 	      void *, void *)
@@ -74,10 +80,12 @@ BPF_MAP_TYPE(BPF_MAP_TYPE_ARRAY_OF_MAPS, array_of_maps_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_HASH_OF_MAPS, htab_of_maps_map_ops)
 #ifdef CONFIG_NET
 BPF_MAP_TYPE(BPF_MAP_TYPE_DEVMAP, dev_map_ops)
+BPF_MAP_TYPE(BPF_MAP_TYPE_DEVMAP_HASH, dev_map_hash_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_CPUMAP, cpu_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY, reuseport_array_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_SOCKHASH, sock_hash_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_SK_STORAGE, sk_storage_map_ops)
+BPF_MAP_TYPE(BPF_MAP_TYPE_INODE_STORAGE, inode_storage_map_ops)
 #ifdef CONFIG_CGROUP_BPF
 BPF_MAP_TYPE(BPF_MAP_TYPE_CGROUP_STORAGE, cgroup_storage_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE, cgroup_storage_map_ops)
@@ -91,3 +99,8 @@ BPF_MAP_TYPE(BPF_MAP_TYPE_STACK, stack_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_RINGBUF, ringbuf_map_ops)
 
 BPF_LINK_TYPE(BPF_LINK_TYPE_RAW_TRACEPOINT, raw_tracepoint)
+BPF_LINK_TYPE(BPF_LINK_TYPE_TRACING, tracing)
+BPF_LINK_TYPE(BPF_LINK_TYPE_CGROUP, cgroup)
+BPF_LINK_TYPE(BPF_LINK_TYPE_ITER, iter)
+BPF_LINK_TYPE(BPF_LINK_TYPE_NETNS, netns)
+BPF_LINK_TYPE(BPF_LINK_TYPE_XDP, xdp)

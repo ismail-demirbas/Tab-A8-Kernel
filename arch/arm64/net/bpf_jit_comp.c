@@ -985,6 +985,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	struct arm64_jit_data *jit_data;
 	struct jit_ctx ctx;
 	int image_size, prog_size, extable_size;
+	int prologue_len = 0;
 	u8 *image_ptr;
 
 	if (!bpf_jit_enable)
@@ -1066,6 +1067,7 @@ skip_init_ctx:
 	ctx.exentry_idx = 0;
 
 	build_prologue(&ctx);
+	prologue_len = ctx.idx;
 
 	if (build_body(&ctx, extra_pass)) {
 		bpf_jit_binary_free(header);
@@ -1109,6 +1111,12 @@ skip_init_ctx:
 	prog->jited_len = image_size;
 
 	if (!prog->is_func || extra_pass) {
+		int i;
+
+		/* ctx.offset[i] = end of insn i, prologue excluded (insn idx) */
+		for (i = 0; i < prog->len; i++)
+			ctx.offset[i] = (ctx.offset[i] + prologue_len) * AARCH64_INSN_SIZE;
+		bpf_prog_fill_jited_linfo(prog, ctx.offset);
 out_off:
 		kfree(ctx.offset);
 		kfree(jit_data);

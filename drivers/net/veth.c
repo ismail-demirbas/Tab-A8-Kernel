@@ -253,6 +253,14 @@ static int veth_get_iflink(const struct net_device *dev)
 	return iflink;
 }
 
+static struct net_device *veth_peer_dev(struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+
+	/* Callers must be under RCU read side. */
+	return rcu_dereference(priv->peer);
+}
+
 static void veth_set_rx_headroom(struct net_device *dev, int new_hr)
 {
 	struct veth_priv *peer_priv, *priv = netdev_priv(dev);
@@ -290,6 +298,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_get_iflink		= veth_get_iflink,
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= veth_set_rx_headroom,
+	.ndo_get_peer_dev	= veth_peer_dev,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HW_CSUM | \

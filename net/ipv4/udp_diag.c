@@ -28,7 +28,7 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 	return inet_sk_diag_fill(sk, NULL, skb, req,
 			sk_user_ns(NETLINK_CB(cb->skb).sk),
 			NETLINK_CB(cb->skb).portid,
-			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh, net_admin);
+			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh, net_admin, cb);
 }
 
 static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
@@ -78,7 +78,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 			   sk_user_ns(NETLINK_CB(in_skb).sk),
 			   NETLINK_CB(in_skb).portid,
 			   nlh->nlmsg_seq, 0, nlh,
-			   netlink_net_capable(in_skb, CAP_NET_ADMIN));
+			   netlink_net_capable(in_skb, CAP_NET_ADMIN), NULL);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(rep);

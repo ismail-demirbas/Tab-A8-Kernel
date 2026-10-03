@@ -60,6 +60,7 @@ struct iov_iter;
 struct fscrypt_info;
 struct fscrypt_operations;
 struct fsverity_info;
+struct bpf_local_storage;
 struct fsverity_operations;
 struct file_ra_state;
 
@@ -684,6 +685,11 @@ struct inode {
 #endif
 
 	void			*i_private; /* fs or device private pointer */
+#ifndef __GENKSYMS__
+#ifdef CONFIG_BPF_SYSCALL
+	struct bpf_local_storage __rcu	*i_bpf_storage;
+#endif
+#endif
 } __randomize_layout;
 
 static inline unsigned int i_blocksize(const struct inode *node)

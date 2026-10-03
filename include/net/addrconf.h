@@ -235,6 +235,15 @@ struct ipv6_stub {
 };
 extern const struct ipv6_stub *ipv6_stub __read_mostly;
 
+/* A stub used by bpf helpers. Similarly ugly as ipv6_stub.
+ * SAPMA: 5.10 udp6_lib_lookup uyesi yok (__bpf_sk_lookup IPv6'yi dogrudan cagiriyor)
+ */
+struct ipv6_bpf_stub {
+	int (*inet6_bind)(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+			  u32 flags);
+};
+extern const struct ipv6_bpf_stub *ipv6_bpf_stub __read_mostly;
+
 /*
  * identify MLD packets for MLD filter exceptions
  */

@@ -5,6 +5,8 @@
  * License as published by the Free Software Foundation.
  */
 #include <linux/bpf.h>
+#include <linux/sched/task_stack.h>
+#include <linux/btf_ids.h>
 #include <linux/jhash.h>
 #include <linux/filter.h>
 #include <linux/stacktrace.h>
@@ -196,11 +198,46 @@ const struct bpf_func_proto bpf_get_stackid_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
+static struct perf_callchain_entry *
+get_callchain_entry_for_task(struct task_struct *task, u32 max_depth)
+{
+#ifdef CONFIG_STACKTRACE
+	struct perf_callchain_entry *entry;
+	struct stack_trace st;
+	int rctx;
+
+	entry = get_callchain_entry(&rctx);
+
+	if (!entry)
+		return NULL;
+
+	/* 4.14: stack_trace_save_tsk yok, save_stack_trace_tsk kullanilir.
+	 * perf_callchain_entry.ip u64[] == unsigned long[] (arm64).
+	 */
+	st.nr_entries = 0;
+	st.max_entries = max_depth;
+	st.entries = (unsigned long *)entry->ip;
+	st.skip = 0;
+	save_stack_trace_tsk(task, &st);
+	/* eski arm64: ULONG_MAX sonlandirici eklenebilir */
+	if (st.nr_entries && st.entries[st.nr_entries - 1] == ULONG_MAX)
+		st.nr_entries--;
+	entry->nr = st.nr_entries;
+
+	put_callchain_entry(rctx);
+
+	return entry;
+#else /* CONFIG_STACKTRACE */
+	return NULL;
+#endif
+}
+
 static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 			    struct perf_callchain_entry *trace_in,
 			    void *buf, u32 size, u64 flags)
 {
 	u32 trace_nr, copy_len, elem_size, num_elem, max_depth;
+	bool crosstask = task && task != current;
 	bool user = flags & BPF_F_USER_STACK;
 	struct perf_callchain_entry *trace;
 	bool kernel = !user;
@@ -215,6 +252,18 @@ static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 	if (unlikely(size % elem_size))
 		goto clear;
 
+	/* cannot get valid user stack for task without user_mode regs */
+	if (task && user && !user_mode(regs))
+		goto err_fault;
+
+	/* get_perf_callchain does not support crosstask user stack walking
+	 * but returns an empty stack instead of NULL.
+	 */
+	if (crosstask && user) {
+		err = -EOPNOTSUPP;
+		goto clear;
+	}
+
 	num_elem = size / elem_size;
 	max_depth = num_elem + skip;
 	if (sysctl_perf_event_max_stack < max_depth)
@@ -222,9 +271,11 @@ static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 
 	if (trace_in)
 		trace = trace_in;
+	else if (kernel && task)
+		trace = get_callchain_entry_for_task(task, max_depth);
 	else
 		trace = get_perf_callchain(regs, 0, kernel, user, max_depth,
-					   false, false);
+					   crosstask, false);
 	if (unlikely(!trace))
 		goto err_fault;
 
@@ -260,6 +311,36 @@ const struct bpf_func_proto bpf_get_stack_proto = {
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_get_task_stack, struct task_struct *, task, void *, buf,
+	   u32, size, u64, flags)
+{
+	struct pt_regs *regs;
+	long res = -EINVAL;
+
+	if (!try_get_task_stack(task))
+		return -EFAULT;
+
+	regs = task_pt_regs(task);
+	if (regs)
+		res = __bpf_get_stack(regs, task, NULL, buf, size, flags);
+	put_task_stack(task);
+
+	return res;
+}
+
+BTF_ID_LIST_SINGLE(bpf_get_task_stack_btf_ids, struct, task_struct)
+
+const struct bpf_func_proto bpf_get_task_stack_proto = {
+	.func		= bpf_get_task_stack,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_BTF_ID,
+	.arg1_btf_id	= &bpf_get_task_stack_btf_ids[0],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
@@ -339,11 +420,15 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
+static int stack_trace_map_btf_id;
 const struct bpf_map_ops stack_trace_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,
 	.map_lookup_elem = stack_map_lookup_elem,
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
+	.map_btf_name = "bpf_stack_map",
+	.map_btf_id = &stack_trace_map_btf_id,
 };

@@ -6,6 +6,8 @@
 
 #include <linux/types.h>
 
+#define BTF_TYPE_EMIT(type) ((void)(type *)0)
+
 struct btf;
 struct btf_type;
 union bpf_attr;
@@ -27,6 +29,8 @@ const struct btf_type *
 btf_resolve_size(const struct btf *btf, const struct btf_type *type,
 		 u32 *type_size);
 struct btf *btf_get_by_fd(int fd);
+struct btf_id_set;
+bool btf_id_set_contains(const struct btf_id_set *set, u32 id);
 int btf_check_func_info_type(const struct btf *btf, u32 type_id);
 bool btf_str_offset_valid(const struct btf *btf, u32 offset);
 int btf_get_info_by_fd(const struct btf *btf,
@@ -57,13 +61,29 @@ const struct btf_type *btf_type_id_size(const struct btf *btf,
 					u32 *type_id,
 					u32 *ret_size);
 const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
+#define BTF_SHOW_COMPACT	BTF_F_COMPACT
+#define BTF_SHOW_NONAME		BTF_F_NONAME
+#define BTF_SHOW_PTR_RAW	BTF_F_PTR_RAW
+#define BTF_SHOW_ZERO		BTF_F_ZERO
+#define BTF_SHOW_UNSAFE		(1ULL << 4)
+
 void btf_type_seq_show(const struct btf *btf, u32 type_id, void *obj,
 		       struct seq_file *m);
+int btf_type_seq_show_flags(const struct btf *btf, u32 type_id, void *obj,
+			    struct seq_file *m, u64 flags);
+int btf_type_snprintf_show(const struct btf *btf, u32 type_id, void *obj,
+			   char *buf, int len, u64 flags);
 int btf_get_fd_by_id(u32 id);
 u32 btf_id(const struct btf *btf);
 int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t);
+
+struct btf_member;
+bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
+			   const struct btf_member *m,
+			   u32 expected_offset, u32 expected_size);
 const char *btf_name_by_offset(const struct btf *btf, u32 offset);
 bool btf_type_is_ptr(const struct btf_type *t);
+bool btf_type_is_func(const struct btf_type *t);
 bool btf_type_is_func_proto(const struct btf_type *t);
 bool btf_type_is_typedef(const struct btf_type *t);
 int btf_struct_access(struct bpf_verifier_log *log,

@@ -23,6 +23,9 @@
 
 #include <net/sch_generic.h>
 #include <net/xdp.h>
+#ifndef __GENKSYMS__
+#include <linux/if_vlan.h>
+#endif
 
 #ifdef __GENKSYMS__
 struct xdp_buff {
@@ -599,6 +602,18 @@ static inline void bpf_compute_data_end(struct sk_buff *skb)
 	cb->data_end = skb->data + skb_headlen(skb);
 }
 
+/* SAPMA: 5.10 migrate_disable/enable yerine preempt_disable/enable (4.14) */
+static inline u32 bpf_prog_run_pin_on_cpu(const struct bpf_prog *prog,
+					  const void *ctx)
+{
+	u32 ret;
+
+	preempt_disable();
+	ret = BPF_PROG_RUN(prog, ctx);
+	preempt_enable();
+	return ret;
+}
+
 static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta
@@ -817,6 +832,11 @@ void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog);
+void bpf_prog_fill_jited_linfo(struct bpf_prog *prog,
+			       const u32 *insn_to_jit_off);
+int bpf_prog_alloc_jited_linfo(struct bpf_prog *prog);
+void bpf_prog_free_jited_linfo(struct bpf_prog *prog);
+void bpf_prog_free_unused_jited_linfo(struct bpf_prog *prog);
 void bpf_jit_compile(struct bpf_prog *prog);
 bool bpf_helper_changes_pkt_data(void *func);
 
@@ -829,24 +849,41 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
  * because we only track one map and force a flush when the map changes.
  * This does not appear to be a real limitation for existing software.
  */
+#ifdef __GENKSYMS__
 int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 			    struct bpf_prog *prog);
+#else
+int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
+			    struct xdp_buff *xdp, struct bpf_prog *prog);
+#endif
 int xdp_do_redirect(struct net_device *dev,
 		    struct xdp_buff *xdp,
 		    struct bpf_prog *prog);
+void xdp_do_flush(void);
 void xdp_do_flush_map(void);
 
 void bpf_clear_redirect_map(struct bpf_map *map);
-struct sk_msg_buff;
-struct sock *do_msg_redirect_map(struct sk_msg_buff *msg);
 bool xdp_return_frame_no_direct(void);
 void xdp_set_return_frame_no_direct(void);
 void xdp_clear_return_frame_no_direct(void);
 
+static inline int xdp_ok_fwd_dev(const struct net_device *fwd,
+				 unsigned int pktlen)
+{
+	unsigned int len;
+
+	if (unlikely(!(fwd->flags & IFF_UP)))
+		return -ENETDOWN;
+
+	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
+	if (pktlen > len)
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 void bpf_warn_invalid_xdp_action(u32 act);
 void bpf_warn_invalid_xdp_redirect(u32 ifindex);
-
-struct sock *do_sk_redirect_map(struct sk_buff *skb);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;
@@ -1135,11 +1172,26 @@ struct bpf_sockopt_kern {
 
 struct bpf_sock_ops_kern {
 	struct	sock *sk;
-	u32	op;
 	union {
+		u32 args[4];
 		u32 reply;
 		u32 replylong[4];
 	};
+	struct sk_buff	*syn_skb;
+	struct sk_buff	*skb;
+	void	*skb_data_end;
+	u8	op;
+	u8	is_fullsock;
+	u8	remaining_opt_len;
+	u64	temp;			/* temp and everything after is not
+					 * initialized to 0 before calling
+					 * the BPF program. New fields that
+					 * should be initialized to 0 should
+					 * be inserted before temp.
+					 * temp is scratch storage used by
+					 * sock_ops_convert_ctx_access
+					 * as temporary storage of a register.
+					 */
 };
 
 const struct bpf_func_proto *bpf_base_func_proto(enum bpf_func_id func_id);
@@ -1156,24 +1208,87 @@ struct sk_reuseport_kern {
 };
 #endif
 
-struct sk_msg_buff {
-	void *data;
-	void *data_end;
-	__u32 apply_bytes;
-	__u32 cork_bytes;
-	int sg_copybreak;
-	int sg_start;
-	int sg_curr;
-	int sg_end;
-	struct scatterlist sg_data[MAX_SKB_FRAGS];
-	bool sg_copy[MAX_SKB_FRAGS];
-	__u32 flags;
-	struct sock *sk_redir;
-	struct sock *sk;
-	struct sk_buff *skb;
-	struct list_head list;
+extern const struct bpf_func_proto bpf_tcp_sock_proto;
+
+struct net;
+struct sock;
+struct in6_addr;
+
+struct bpf_sk_lookup_kern {
+	u16		family;
+	u16		protocol;
+	__be16		sport;
+	u16		dport;
+	struct {
+		__be32 saddr;
+		__be32 daddr;
+	} v4;
+	struct {
+		const struct in6_addr *saddr;
+		const struct in6_addr *daddr;
+	} v6;
+	struct sock	*selected_sk;
+	bool		no_reuseport;
 };
 
-extern const struct bpf_func_proto bpf_tcp_sock_proto;
+extern struct static_key_false bpf_sk_lookup_enabled;
+
+/* Runners for BPF_SK_LOOKUP programs to invoke on socket lookup.
+ *
+ * Allowed return values for a BPF SK_LOOKUP program are SK_PASS and
+ * SK_DROP:
+ *
+ *  SK_PASS && ctx.selected_sk != NULL: use selected_sk as lookup result
+ *  SK_PASS && ctx.selected_sk == NULL: continue to htable-based socket lookup
+ *  SK_DROP                           : terminate lookup with -ECONNREFUSED
+ *
+ * Aggregation across programs: last non-NULL selected_sk with SK_PASS wins,
+ * else any SK_DROP -> SK_DROP, else SK_PASS with NULL selection.
+ * Caller must ensure that the prog array is non-NULL and stays valid.
+ * SAPMA: migrate_disable() 4.14 te yok -> preempt_disable().
+ */
+#define BPF_PROG_SK_LOOKUP_RUN_ARRAY(array, ctx, func)			\
+	({								\
+		struct bpf_sk_lookup_kern *_ctx = &(ctx);		\
+		struct bpf_prog_array_item *_item;			\
+		struct sock *_selected_sk = NULL;			\
+		bool _no_reuseport = false;				\
+		struct bpf_prog *_prog;					\
+		bool _all_pass = true;					\
+		u32 _ret;						\
+									\
+		preempt_disable();					\
+		_item = &(array)->items[0];				\
+		while ((_prog = READ_ONCE(_item->prog))) {		\
+			/* restore most recent selection */		\
+			_ctx->selected_sk = _selected_sk;		\
+			_ctx->no_reuseport = _no_reuseport;		\
+									\
+			_ret = func(_prog, _ctx);			\
+			if (_ret == SK_PASS && _ctx->selected_sk) {	\
+				/* remember last non-NULL socket */	\
+				_selected_sk = _ctx->selected_sk;	\
+				_no_reuseport = _ctx->no_reuseport;	\
+			} else if (_ret == SK_DROP && _all_pass) {	\
+				_all_pass = false;			\
+			}						\
+			_item++;					\
+		}							\
+		_ctx->selected_sk = _selected_sk;			\
+		_ctx->no_reuseport = _no_reuseport;			\
+		preempt_enable();					\
+		_all_pass || _selected_sk ? SK_PASS : SK_DROP;		\
+	 })
+
+bool bpf_sk_lookup_run_v4(struct net *net, int protocol,
+			  const __be32 saddr, const __be16 sport,
+			  const __be32 daddr, const u16 dport,
+			  struct sock **psk);
+#if IS_ENABLED(CONFIG_IPV6)
+bool bpf_sk_lookup_run_v6(struct net *net, int protocol,
+			  const struct in6_addr *saddr, const __be16 sport,
+			  const struct in6_addr *daddr, const u16 dport,
+			  struct sock **psk);
+#endif
 
 #endif /* __LINUX_FILTER_H__ */

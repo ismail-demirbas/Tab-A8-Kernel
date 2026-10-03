@@ -20,6 +20,7 @@
 #include <linux/extable.h>
 #include <linux/moduleloader.h>
 #include <linux/trace_events.h>
+#include <linux/tracepoint-defs.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
 #include <linux/file.h>
@@ -3665,6 +3666,12 @@ out:
 	return err;
 }
 
+#if IS_ENABLED(CONFIG_BPF_EVENTS)
+extern int bpf_module_raw_events_add(struct module *mod,
+				     struct bpf_raw_event_map *events,
+				     unsigned int num);
+#endif
+
 static int prepare_coming_module(struct module *mod)
 {
 	int err;
@@ -3798,6 +3805,19 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = prepare_coming_module(mod);
 	if (err)
 		goto bug_cleanup;
+
+#if IS_ENABLED(CONFIG_BPF_EVENTS)
+	{
+		unsigned int bpf_num;
+		struct bpf_raw_event_map *bpf_ev;
+
+		bpf_ev = section_objs(info, "__bpf_raw_tp_map",
+				      sizeof(*bpf_ev), &bpf_num);
+		err = bpf_module_raw_events_add(mod, bpf_ev, bpf_num);
+		if (err)
+			goto coming_cleanup;
+	}
+#endif
 
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,

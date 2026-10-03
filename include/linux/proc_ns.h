@@ -83,4 +83,6 @@ extern int ns_get_name(char *buf, size_t size, struct task_struct *task,
 			const struct proc_ns_operations *ns_ops);
 extern void nsfs_init(void);
 
+extern bool ns_match(const struct ns_common *ns, dev_t dev, ino_t ino);
+
 #endif /* _LINUX_PROC_NS_H */

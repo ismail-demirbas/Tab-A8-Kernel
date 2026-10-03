@@ -26,6 +26,12 @@ void sock_diag_register_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsgh
 void sock_diag_unregister_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh));
 
 u64 sock_gen_cookie(struct sock *sk);
+
+/* SAPMA: 4.14 sock_gen_cookie preempt_disable gerektirmez; 5.10 __sock_gen_cookie adi icin sarmalayici */
+static inline u64 __sock_gen_cookie(struct sock *sk)
+{
+	return sock_gen_cookie(sk);
+}
 int sock_diag_check_cookie(struct sock *sk, const __u32 *cookie);
 void sock_diag_save_cookie(struct sock *sk, __u32 *cookie);
 

@@ -196,6 +196,13 @@ struct bpf_insn_aux_data {
 			u32 map_index;		/* index into used_maps[] */
 			u32 map_off;		/* offset from value base address */
 		};
+		struct {
+			enum bpf_reg_type reg_type;
+			union {
+				u32 btf_id;
+				u32 mem_size;
+			};
+		} btf_var;
 	};
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
 	u32 btf_id;
@@ -245,6 +252,7 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 
 struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
+	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
 };
 

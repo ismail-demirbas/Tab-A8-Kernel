@@ -388,4 +388,12 @@ unsigned long read_word_at_a_time(const void *addr)
  */
 #define prevent_tail_call_optimization()	mb()
 
+#ifndef fallthrough
+# if __has_attribute(__fallthrough__)
+#  define fallthrough __attribute__((__fallthrough__))
+# else
+#  define fallthrough do {} while (0)
+# endif
+#endif
+
 #endif /* __LINUX_COMPILER_H */

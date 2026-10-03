@@ -150,7 +150,7 @@ void put_callchain_buffers(void)
 	}
 }
 
-static struct perf_callchain_entry *get_callchain_entry(int *rctx)
+struct perf_callchain_entry *get_callchain_entry(int *rctx)
 {
 	int cpu;
 	struct callchain_cpus_entries *entries;
@@ -169,7 +169,7 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 		(*rctx * perf_callchain_entry__sizeof()));
 }
 
-static void
+void
 put_callchain_entry(int rctx)
 {
 	put_recursion_context(this_cpu_ptr(callchain_recursion), rctx);

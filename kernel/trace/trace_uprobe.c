@@ -1362,3 +1362,28 @@ static __init int init_uprobe_trace(void)
 }
 
 fs_initcall(init_uprobe_trace);
+
+#ifdef CONFIG_PERF_EVENTS
+int bpf_get_uprobe_info(const struct perf_event *event, u32 *fd_type,
+			const char **filename, u64 *probe_offset,
+			u64 *probe_addr, bool perf_type_tracepoint)
+{
+	const char *pevent = trace_event_name(event->tp_event);
+	const char *group = event->tp_event->class->system;
+	struct trace_uprobe *tu;
+
+	if (perf_type_tracepoint)
+		tu = find_probe_event(pevent, group);
+	else
+		tu = container_of(event->tp_event, struct trace_uprobe, tp.call);
+	if (!tu)
+		return -EINVAL;
+
+	*fd_type = is_ret_probe(tu) ? BPF_FD_TYPE_URETPROBE
+				    : BPF_FD_TYPE_UPROBE;
+	*filename = tu->filename;
+	*probe_offset = tu->offset;
+	*probe_addr = 0;
+	return 0;
+}
+#endif	/* CONFIG_PERF_EVENTS */

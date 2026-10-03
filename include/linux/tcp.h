@@ -102,6 +102,10 @@ struct tcp_options_received {
 		snd_wscale : 4,	/* Window scaling received from sender	*/
 		rcv_wscale : 4;	/* Window scaling to send to receiver	*/
 	u8	num_sacks;	/* Number of SACK blocks		*/
+#ifndef __GENKSYMS__
+	u8	saw_unknown:1,	/* Received unknown option		*/
+		unused:7;
+#endif
 	u16	user_mss;	/* mss requested by user in ioctl	*/
 	u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
@@ -364,8 +368,23 @@ struct tcp_sock {
 	 * socket. Used to retransmit SYNACKs etc.
 	 */
 	struct request_sock *fastopen_rsk;
+#ifndef __GENKSYMS__
+	struct saved_syn *saved_syn;
+#else
 	u32	*saved_syn;
+#endif
+#ifndef __GENKSYMS__
+#ifdef CONFIG_BPF
+	u8	bpf_sock_ops_cb_flags;	/* Control calling BPF programs, values in uapi/linux/bpf.h */
+#endif
+#endif
 };
+
+#ifdef CONFIG_BPF
+#define BPF_SOCK_OPS_TEST_FLAG(TP, ARG) ((TP)->bpf_sock_ops_cb_flags & (ARG))
+#else
+#define BPF_SOCK_OPS_TEST_FLAG(TP, ARG) 0
+#endif
 
 enum tsq_enum {
 	TSQ_THROTTLED,
@@ -439,6 +458,12 @@ static inline void tcp_saved_syn_free(struct tcp_sock *tp)
 {
 	kfree(tp->saved_syn);
 	tp->saved_syn = NULL;
+}
+
+static inline u32 tcp_saved_syn_len(const struct saved_syn *saved_syn)
+{
+	return saved_syn->mac_hdrlen + saved_syn->network_hdrlen +
+		saved_syn->tcp_hdrlen;
 }
 
 struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk);

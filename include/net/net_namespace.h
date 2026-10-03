@@ -30,6 +30,9 @@
 #include <net/netns/xfrm.h>
 #include <net/netns/mpls.h>
 #include <net/netns/can.h>
+#ifndef __GENKSYMS__
+#include <net/netns/bpf.h>
+#endif
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
@@ -152,6 +155,10 @@ struct net {
 #endif
 	struct sock		*diag_nlsk;
 	atomic_t		fnhe_genid;
+#ifndef __GENKSYMS__
+	struct netns_bpf	bpf;
+	atomic64_t		net_cookie;
+#endif
 } __randomize_layout;
 
 #include <linux/seq_file_net.h>

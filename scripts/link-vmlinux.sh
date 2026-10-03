@@ -435,6 +435,19 @@ fi
 info LD vmlinux
 vmlinux_link "${kallsymso} ${btf_vmlinux_bin_o}" vmlinux
 
+if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
+	[ -x "${RESOLVE_BTFIDS}" ] || MAKEFLAGS= MAKELEVEL= make -s -C "${srctree}/tools/bpf/resolve_btfids" >&2
+	if ! [ -x "${RESOLVE_BTFIDS}" ]; then
+		echo >&2 "BTFIDS: resolve_btfids bulunamadi: ${RESOLVE_BTFIDS}"
+		exit 1
+	fi
+	info BTFIDS vmlinux
+	if ! ${RESOLVE_BTFIDS} vmlinux; then
+		echo >&2 "BTFIDS: resolve_btfids basarisiz"
+		exit 1
+	fi
+fi
+
 if [ -n "${CONFIG_BUILDTIME_EXTABLE_SORT}" ]; then
 	info SORTEX vmlinux
 	sortextable vmlinux

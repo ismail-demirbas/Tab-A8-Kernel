@@ -32,6 +32,12 @@ int inet_shutdown(struct socket *sock, int how);
 int inet_listen(struct socket *sock, int backlog);
 void inet_sock_destruct(struct sock *sk);
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+/* Flags for __inet_bind()/__inet6_bind() */
+#define BIND_FORCE_ADDRESS_NO_PORT	(1 << 0)
+#define BIND_WITH_LOCK			(1 << 1)
+#define BIND_FROM_BPF			(1 << 2)
+int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+		u32 flags);
 int inet_getname(struct socket *sock, struct sockaddr *uaddr, int *uaddr_len,
 		 int peer);
 int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);

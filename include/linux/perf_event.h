@@ -539,7 +539,11 @@ struct swevent_hlist {
 #define PERF_ATTACH_ITRACE	0x10
 
 struct perf_cgroup;
+#ifdef __GENKSYMS__
 struct ring_buffer;
+#else
+struct perf_buffer;
+#endif
 
 struct pmu_event_list {
 	raw_spinlock_t		lock;
@@ -663,7 +667,11 @@ struct perf_event {
 	struct mutex			mmap_mutex;
 	atomic_t			mmap_count;
 
+#ifdef __GENKSYMS__
 	struct ring_buffer		*rb;
+#else
+	struct perf_buffer		*rb;
+#endif
 	struct list_head		rb_entry;
 	unsigned long			rcu_batches;
 	int				rcu_pending;
@@ -806,7 +814,11 @@ struct perf_cpu_context {
 
 struct perf_output_handle {
 	struct perf_event		*event;
+#ifdef __GENKSYMS__
 	struct ring_buffer		*rb;
+#else
+	struct perf_buffer		*rb;
+#endif
 	unsigned long			wakeup;
 	unsigned long			size;
 	u64				aux_flags;
@@ -1135,6 +1147,8 @@ extern void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct
 extern struct perf_callchain_entry *
 get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		   u32 max_stack, bool crosstask, bool add_mark);
+extern struct perf_callchain_entry *get_callchain_entry(int *rctx);
+extern void put_callchain_entry(int rctx);
 extern int get_callchain_buffers(int max_stack);
 extern void put_callchain_buffers(void);
 
