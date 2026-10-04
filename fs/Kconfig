@@ -325,4 +325,5 @@ config SPRD_FS_GCOV
 	help
 	  Say Y here to enable fs gcov
 
+source "fs/nomount/Kconfig"
 endmenu
