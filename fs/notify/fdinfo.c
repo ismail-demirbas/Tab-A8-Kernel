@@ -118,15 +118,15 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 				goto out_seq_printf;
 			}
 			dpath = d_path(&file->f_path, pathname, PAGE_SIZE);
-			if (!dpath) {
+			if (IS_ERR(dpath)) {
 				goto out_free_pathname;
 			}
 			if (kern_path(dpath, 0, &path)) {
 				goto out_free_pathname;
 			}
 			seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
-				   inode_mark->wd, path.dentry->d_inode->i_ino, path.dentry->d_inode->i_sb->s_dev,
-				   mask, mark->ignored_mask);
+					inode_mark->wd, path.dentry->d_inode->i_ino, path.dentry->d_inode->i_sb->s_dev,
+					mask, mark->ignored_mask);
 			show_mark_fhandle(m, path.dentry->d_inode);
 			seq_putc(m, '\n');
 			iput(inode);
@@ -157,7 +157,8 @@ void inotify_show_fdinfo(struct seq_file *m, struct file *f)
 #ifdef CONFIG_FANOTIFY
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark, struct file *file)
+static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark,
+                            struct file *file)
 #else
 static void fanotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
 #endif

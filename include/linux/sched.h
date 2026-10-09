@@ -1295,10 +1295,8 @@ struct task_struct {
 	 * they are included in the randomized portion of task_struct.
 	 */
 #ifdef CONFIG_KSU_SUSFS
-#ifndef __GENKSYMS__
 	u64 susfs_task_state;
 	u64 susfs_last_fake_mnt_id;
-#endif
 #endif
 	randomized_struct_fields_end
 

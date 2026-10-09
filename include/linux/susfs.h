@@ -7,10 +7,8 @@
 #include <linux/hashtable.h>
 #include <linux/path.h>
 #include <linux/susfs_def.h>
-#include <linux/sched.h>
-#include <linux/workqueue.h>
 
-#define SUSFS_VERSION "v1.5.5"
+#define SUSFS_VERSION "v1.5.8"
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
 #define SUSFS_VARIANT "NON-GKI"
 #else
@@ -31,12 +29,26 @@
 struct st_susfs_sus_path {
 	unsigned long                    target_ino;
 	char                             target_pathname[SUSFS_MAX_LEN_PATHNAME];
+	unsigned int                     i_uid;
 };
 
-struct st_susfs_sus_path_hlist {
-	unsigned long                    target_ino;
+struct st_susfs_sus_path_list {
+	struct list_head                 list;
+	struct st_susfs_sus_path         info;
 	char                             target_pathname[SUSFS_MAX_LEN_PATHNAME];
-	struct hlist_node                node;
+	size_t                           path_len;
+};
+
+struct st_android_data_path {
+	unsigned long                    i_ino;
+	unsigned long                    s_magic;
+	char                             pathname[SUSFS_MAX_LEN_PATHNAME];
+};
+
+struct st_sdcard_path {
+	unsigned long                    i_ino;
+	unsigned long                    s_magic;
+	char                             pathname[SUSFS_MAX_LEN_PATHNAME];
 };
 #endif
 
@@ -129,8 +141,8 @@ struct st_sus_su {
 /***********************/
 /* sus_path */
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
+int susfs_set_i_state_on_external_dir(char __user* user_info, int cmd);
 int susfs_add_sus_path(struct st_susfs_sus_path* __user user_info);
-int susfs_sus_ino_for_filldir64(unsigned long ino);
 #endif
 /* sus_mount */
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
@@ -183,20 +195,6 @@ int susfs_get_sus_su_working_mode(void);
 int susfs_sus_su(struct st_sus_su* __user user_info);
 #endif
 /* susfs_init */
-#ifdef CONFIG_KSU_SUSFS
-/* v2.x task-state API compat (susfs v1.5.5) */
-#define SUSFS_TS_FN(name, bit) \
-static inline bool susfs_is_current_proc_##name(void) \
-{ return !!(current->susfs_task_state & (bit)); } \
-static inline void susfs_set_current_proc_##name(void) \
-{ current->susfs_task_state |= (bit); } \
-static inline void susfs_clear_current_proc_##name(void) \
-{ current->susfs_task_state &= ~(u64)(bit); }
-SUSFS_TS_FN(no_su, TASK_STRUCT_PROC_NO_SU)
-SUSFS_TS_FN(umounted, TASK_STRUCT_PROC_UMOUNTED)
-SUSFS_TS_FN(umounted_for_zygote_next, TASK_STRUCT_PROC_UMOUNTED_ZYGOTE_NEXT)
-extern struct work_struct susfs_extra_works;
-#endif
 void susfs_init(void);
 
 #endif

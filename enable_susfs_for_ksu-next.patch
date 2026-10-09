@@ -1,0 +1,312 @@
+diff --git a/Kbuild b/Kbuild
+index 77f5be0..ae70dfe 100644
+--- a/Kbuild
++++ b/Kbuild
+@@ -42,6 +42,10 @@ kernelsu-objs += supercall/supercall.o
+ kernelsu-objs += feature/adb_root.o
+ kernelsu-objs += feature/selinux_hide.o
+ 
++ifeq ($(CONFIG_KSU_SUSFS),y)
++kernelsu-objs += feature/susfs_glue.o
++endif
++
+ ifdef KBUILD_EXTMOD
+ ifeq ($(CONFIG_KSU_DISABLE_MANAGER),y)
+ ccflags-y += -DCONFIG_KSU_DISABLE_MANAGER=1
+diff --git a/Kconfig b/Kconfig
+index 946966d..060d7b3 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -72,4 +72,80 @@ config KSU_SYSCALL_TABLE_HOOK
+ 
+ endchoice
+ 
++menu "KernelSU - SUSFS"
++
++config KSU_SUSFS
++	bool "KernelSU addon - SUSFS"
++	depends on KSU = y
++	default y
++	help
++	  Enable SUSFS root hiding support for KernelSU.
++
++config KSU_SUSFS_SUS_PATH
++	bool "Enable to hide suspicious path"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Hide user-defined paths and their sub-paths from various system calls.
++	  Effective only on zygote spawned user app processes.
++
++config KSU_SUSFS_SUS_MOUNT
++	bool "Enable to hide suspicious mounts"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Hide user-defined mount paths from /proc/self/[mounts|mountinfo|mountstats].
++
++config KSU_SUSFS_SUS_KSTAT
++	bool "Enable to spoof suspicious kstat"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Spoof the kstat of user-defined files and directories.
++
++config KSU_SUSFS_SUS_MAP
++	bool "Enable to hide suspicious maps"
++	depends on KSU_SUSFS
++	default n
++	help
++	  Hide user-defined mappings from /proc/self/maps.
++
++config KSU_SUSFS_SPOOF_UNAME
++	bool "Enable to spoof uname"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Spoof the strings returned by the uname syscall.
++
++config KSU_SUSFS_ENABLE_LOG
++	bool "Enable logging susfs log to kernel"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Log susfs events to the kernel log.
++
++config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
++	bool "Hide ksu and susfs symbols from /proc/kallsyms"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Automatically hide ksu and susfs symbols from /proc/kallsyms.
++
++config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	bool "Spoof /proc/cmdline or /proc/bootconfig"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Spoof the output of /proc/cmdline with a user-defined file.
++
++config KSU_SUSFS_OPEN_REDIRECT
++	bool "Enable to redirect a path to be opened with another path"
++	depends on KSU_SUSFS
++	default y
++	help
++	  Redirect a target path to be opened with another user-defined path.
++	  Effective only on processes with uid < 2000.
++
++endmenu
++
+ endmenu
+diff --git a/feature/susfs_glue.c b/feature/susfs_glue.c
+new file mode 100644
+index 0000000..5dcec6a
+--- /dev/null
++++ b/feature/susfs_glue.c
+@@ -0,0 +1,166 @@
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <linux/fs.h>
++#include <linux/mount.h>
++#include <linux/seq_file.h>
++#include <linux/utsname.h>
++#include <linux/sched.h>
++#include <linux/cred.h>
++#include <linux/errno.h>
++#include <linux/bitops.h>
++#include <linux/uaccess.h>
++#include <linux/susfs.h>
++#include <linux/susfs_def.h>
++
++#include "selinux/selinux.h"
++#include "susfs_glue.h"
++
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_hide_sus_mnts_for_all_procs;
++#endif
++
++bool susfs_is_current_ksu_domain(void)
++{
++	return is_ksu_domain();
++}
++
++bool susfs_is_current_zygote_domain(void)
++{
++	return is_zygote(current_cred());
++}
++
++void susfs_ksu_on_setuid(uid_t new_uid, bool allowed)
++{
++	uid_t app = new_uid % 100000;
++
++	if (allowed || app < 10000 || app > 19999)
++		return;
++
++	task_lock(current);
++	current->susfs_task_state |= TASK_STRUCT_NON_ROOT_USER_APP_PROC;
++	task_unlock(current);
++}
++
++static u64 susfs_enabled_features(void)
++{
++	u64 f = 0;
++
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	f |= BIT_ULL(0);
++#endif
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	f |= BIT_ULL(1);
++#endif
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++	f |= BIT_ULL(4);
++#endif
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++	f |= BIT_ULL(7);
++#endif
++#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
++	f |= BIT_ULL(8);
++#endif
++#ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
++	f |= BIT_ULL(9);
++#endif
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	f |= BIT_ULL(10);
++#endif
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++	f |= BIT_ULL(11);
++#endif
++	return f;
++}
++
++static void susfs_ksu_reply(unsigned long result, int error)
++{
++	if (result && copy_to_user((void __user *)result, &error, sizeof(error)))
++		pr_err("susfs: copy_to_user failed\n");
++}
++
++int ksu_susfs_prctl(unsigned long cmd, unsigned long arg, unsigned long result)
++{
++	int error = -EINVAL;
++	u64 features;
++
++	if (current_uid().val != 0)
++		return 0;
++
++	switch (cmd) {
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	case CMD_SUSFS_ADD_SUS_PATH:
++		error = susfs_add_sus_path((struct st_susfs_sus_path __user *)arg);
++		break;
++	case CMD_SUSFS_SET_ANDROID_DATA_ROOT_PATH:
++	case CMD_SUSFS_SET_SDCARD_ROOT_PATH:
++		error = susfs_set_i_state_on_external_dir((char __user *)arg, (int)cmd);
++		break;
++#endif
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	case CMD_SUSFS_ADD_SUS_MOUNT:
++		error = susfs_add_sus_mount((struct st_susfs_sus_mount __user *)arg);
++		break;
++	case CMD_SUSFS_HIDE_SUS_MNTS_FOR_ALL_PROCS:
++		if (arg == 0 || arg == 1) {
++			susfs_hide_sus_mnts_for_all_procs = arg;
++			error = 0;
++		}
++		break;
++#endif
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++	case CMD_SUSFS_ADD_SUS_KSTAT:
++	case CMD_SUSFS_ADD_SUS_KSTAT_STATICALLY:
++		error = susfs_add_sus_kstat((struct st_susfs_sus_kstat __user *)arg);
++		break;
++	case CMD_SUSFS_UPDATE_SUS_KSTAT:
++		error = susfs_update_sus_kstat((struct st_susfs_sus_kstat __user *)arg);
++		break;
++#endif
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++	case CMD_SUSFS_SET_UNAME:
++		error = susfs_set_uname((struct st_susfs_uname __user *)arg);
++		break;
++#endif
++#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
++	case CMD_SUSFS_ENABLE_LOG:
++		if (arg == 0 || arg == 1) {
++			susfs_set_log(arg);
++			error = 0;
++		}
++		break;
++#endif
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	case CMD_SUSFS_SET_CMDLINE_OR_BOOTCONFIG:
++		error = susfs_set_cmdline_or_bootconfig((char __user *)arg);
++		break;
++#endif
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++	case CMD_SUSFS_ADD_OPEN_REDIRECT:
++		error = susfs_add_open_redirect((struct st_susfs_open_redirect __user *)arg);
++		break;
++#endif
++	case CMD_SUSFS_SHOW_VERSION:
++		error = copy_to_user((void __user *)arg, SUSFS_VERSION, sizeof(SUSFS_VERSION)) ? -EFAULT : 0;
++		break;
++	case CMD_SUSFS_SHOW_VARIANT:
++		error = copy_to_user((void __user *)arg, SUSFS_VARIANT, sizeof(SUSFS_VARIANT)) ? -EFAULT : 0;
++		break;
++	case CMD_SUSFS_SHOW_ENABLED_FEATURES:
++		features = susfs_enabled_features();
++		error = copy_to_user((void __user *)arg, &features, sizeof(features)) ? -EFAULT : 0;
++		break;
++	default:
++		break;
++	}
++
++	susfs_ksu_reply(result, error);
++	return 0;
++}
++
++static int __init susfs_ksu_init(void)
++{
++	susfs_init();
++	return 0;
++}
++core_initcall(susfs_ksu_init);
+diff --git a/hook/setuid_hook.c b/hook/setuid_hook.c
+index 3cb0be8..f021793 100644
+--- a/hook/setuid_hook.c
++++ b/hook/setuid_hook.c
+@@ -12,6 +12,7 @@
+ #include "hook/hook_manager.h"
+ #include "feature/kernel_umount.h"
+ #include "compat/kernel_compat.h"
++#include "susfs_glue.h"
+ 
+ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+ {
+@@ -37,6 +38,10 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+ #endif
+     }
+ 
++#ifdef CONFIG_KSU_SUSFS
++    susfs_ksu_on_setuid(new_uid, ksu_is_allow_uid_for_current(new_uid));
++#endif
++
+     // Handle kernel umount
+     ksu_handle_umount(old_uid, new_uid);
+ 
+diff --git a/include/susfs_glue.h b/include/susfs_glue.h
+new file mode 100644
+index 0000000..5aabccc
+--- /dev/null
++++ b/include/susfs_glue.h
+@@ -0,0 +1,11 @@
++#ifndef __KSU_SUSFS_GLUE_H
++#define __KSU_SUSFS_GLUE_H
++
++#include <linux/types.h>
++
++bool susfs_is_current_ksu_domain(void);
++bool susfs_is_current_zygote_domain(void);
++void susfs_ksu_on_setuid(uid_t new_uid, bool allowed);
++int ksu_susfs_prctl(unsigned long cmd, unsigned long arg, unsigned long result);
++
++#endif

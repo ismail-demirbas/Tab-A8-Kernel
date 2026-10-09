@@ -8,6 +8,5 @@ Module.symvers
 modules.order
 *.img
 ak3/Image
-KernelSU/
 AnyKernel3/
 arch/arm64/boot/Image

@@ -70,9 +70,7 @@ struct vfsmount {
 	int mnt_flags;
 	void *data;
 #ifdef CONFIG_KSU_SUSFS
-#ifndef __GENKSYMS__
 	u64 susfs_mnt_id_backup;
-#endif
 #endif
 } __randomize_layout;
 
