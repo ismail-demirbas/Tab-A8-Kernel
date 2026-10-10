@@ -323,7 +323,7 @@ static int alarmtimer_resume(struct device *dev)
 void alarmtimer_shutdown(struct platform_device *pdev)
 {
 	ktime_t min = 0, early = ktime_set(120, 0), now;
-	int ret, alarm_type = ALARM_NUMTYPE, i;
+	int ret, __maybe_unused alarm_type = ALARM_NUMTYPE, i;
 	struct rtc_device *rtc;
 	struct rtc_wkalrm alarm;
 	unsigned long flags;

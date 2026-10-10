@@ -602,7 +602,7 @@ void init_sysfs_device(struct class* sysfs_class, struct t_ib_device_tree* ib_dt
 int parse_dtsi_str(struct device_node *np, const char *target_node, void *target_arr, int isIntType)
 {
 	char prop_str[100];
-	size_t prop_size = 0;
+	size_t __maybe_unused prop_size = 0;
 	char *prop_pointer = NULL;
 	const char *token = NULL;
 	int iter = 0;

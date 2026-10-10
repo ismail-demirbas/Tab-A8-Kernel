@@ -132,7 +132,7 @@ static irqreturn_t smsg_process(struct smsg *msg,
 				struct smsg_ipc *ipc,
 				bool need_wakelock)
 {
-	struct smsg_assert_notify *assert_notify;
+	struct smsg_assert_notify *__maybe_unused assert_notify;
 	struct smsg_channel *ch = NULL;
 	u32 wr;
 	u8 ch_index;

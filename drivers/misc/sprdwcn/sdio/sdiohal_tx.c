@@ -59,7 +59,7 @@ int sdiohal_tx_thread(void *data)
 	struct sdiohal_list_t data_list;
 	struct sched_param param;
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 	int ret;
 

@@ -522,7 +522,7 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 	struct cgroup_subsys_state *css;
 	struct bpf_prog_list *pl;
 	bool pl_was_allocated;
-	u32 old_flags;
+	u32 __maybe_unused old_flags;
 	int err;
 
 	if (link && (prog || replace_prog))

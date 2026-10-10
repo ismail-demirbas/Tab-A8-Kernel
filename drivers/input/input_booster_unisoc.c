@@ -51,7 +51,7 @@ void ib_set_booster(long* qos_values)
 	int value = -1;
 	int ddr_level = 0;
 	int res_type =0;
-	int ret = 0;
+	int __maybe_unused ret = 0;
 	for(res_type = 0; res_type < MAX_RES_COUNT; res_type++) {
 		value = qos_values[res_type];
 
@@ -122,7 +122,7 @@ int input_booster_init_vendor(void)
 	return 1;
 }
 
-void input_booster_exit_vendor()
+void input_booster_exit_vendor(void)
 {
 	pm_qos_remove_request(&cpufreq_little_min_qos);
 	pm_qos_remove_request(&cpufreq_big_min_qos);

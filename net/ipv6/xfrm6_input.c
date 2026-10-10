@@ -81,7 +81,7 @@ int xfrm6_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_sock *up = udp_sk(sk);
 	struct udphdr *uh;
-	struct ipv6hdr *ip6h;
+	struct ipv6hdr *__maybe_unused ip6h;
 	int iphlen, len;
 	__u8 *udpdata;
 	__be32 *udpdata32;

@@ -270,7 +270,7 @@ static int sprd_hardware_cpufreq_init(struct cpufreq_policy *policy)
 	struct sprd_cpudvfs_device *pdev;
 	struct sprd_cpudvfs_ops *driver;
 	struct device_node *cpu_np;
-	unsigned int freq_Hz = 0;
+	unsigned int __maybe_unused freq_Hz = 0;
 	struct device *cpu_dev;
 	int ret, cpu = 0;
 	int curr_cluster;

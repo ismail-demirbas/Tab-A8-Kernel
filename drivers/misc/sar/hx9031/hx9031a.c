@@ -363,7 +363,7 @@ static int8_t hx9031a_id_check(void)
 
 #define BOARD_INFO "androidboot.pcbainfo="
 #define BOARD_WIFI "WIOL_6301AA"
-bool Is_Wifi_Version()
+bool Is_Wifi_Version(void)
 {
     char* str = NULL;
     char board_string[12] = {0};

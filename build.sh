@@ -5,19 +5,86 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-export CROSS_COMPILE=$(pwd)/toolchain/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+export CROSS_COMPILE=aarch64-linux-gnu-
 export ARCH=arm64
-export CLANG_TOOL_PATH=$(pwd)/toolchain/clang/host/linux-x86/clang-r383902/bin/
+export CLANG_DIR=$(pwd)/toolchain/neutron-clang
+export CLANG_TOOL_PATH=$CLANG_DIR/bin/
 export PATH=${CLANG_TOOL_PATH}:${PATH//"${CLANG_TOOL_PATH}:"}
+
+export GCC_DIR=$(pwd)/toolchain/gcc-aarch64
+export PATH=${GCC_DIR}/bin:${PATH}
+
+if ! command -v aarch64-linux-gnu-elfedit >/dev/null; then
+    echo "-----------------------------------------------"
+    echo "aarch64-linux-gnu- binutils not found! Downloading..."
+    echo "-----------------------------------------------"
+
+    if ! command -v git >/dev/null; then
+        echo -e "${RED}Missing tool: git${NC}"
+        echo "  Debian/Ubuntu : sudo apt install git"
+        echo "  Arch          : sudo pacman -S git"
+        echo "  Fedora        : sudo dnf install git"
+        exit 1
+    fi
+
+    rm -rf "$GCC_DIR"
+    git clone --depth=1 -b lineage-19.1 \
+        https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
+        "$GCC_DIR" \
+        || { echo -e "${RED}Failed to download aarch64 GCC${NC}"; rm -rf "$GCC_DIR"; exit 1; }
+    rm -rf "$GCC_DIR/.git"
+
+    command -v aarch64-linux-gnu-elfedit >/dev/null \
+        || { echo -e "${RED}aarch64-linux-gnu-elfedit still not found${NC}"; rm -rf "$GCC_DIR"; exit 1; }
+fi
+
+if [ ! -x "$CLANG_DIR/bin/clang" ]; then
+    echo "-----------------------------------------------"
+    echo "Toolchain not found! Downloading Neutron-Clang..."
+    echo "-----------------------------------------------"
+
+    for dep in curl wget strings zstd tar sha256sum file; do
+        if ! command -v $dep >/dev/null; then
+            echo -e "${RED}Missing tool: $dep${NC}"
+            echo "  Debian/Ubuntu : sudo apt install curl wget binutils zstd tar coreutils file"
+            echo "  Arch          : sudo pacman -S curl wget binutils zstd tar coreutils file"
+            echo "  Fedora        : sudo dnf install curl wget binutils zstd tar coreutils file"
+            exit 1
+        fi
+    done
+
+    mkdir -p "$CLANG_DIR"
+    pushd "$CLANG_DIR" > /dev/null || exit 1
+
+    curl -fsSL https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman -o antman \
+        || { echo -e "${RED}Failed to download antman${NC}"; popd > /dev/null; rm -rf "$CLANG_DIR"; exit 1; }
+
+    bash antman -S 2>&1 | tee antman.log
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+        echo -e "${RED}antman sync failed${NC}"
+        popd > /dev/null
+        rm -rf "$CLANG_DIR"
+        exit 1
+    fi
+
+    if grep -q "older than the minimum required" antman.log; then
+        echo "Host glibc too old, patching toolchain..."
+        bash antman --patch=glibc \
+            || { echo -e "${RED}glibc patch failed${NC}"; popd > /dev/null; rm -rf "$CLANG_DIR"; exit 1; }
+    fi
+    rm -f antman.log
+
+    popd > /dev/null
+fi
 
 export BSP_BUILD_FAMILY=qogirl6
 export DTC_OVERLAY_TEST_EXT=$(pwd)/tools/mkdtimg/ufdt_apply_overlay
 export DTC_OVERLAY_VTS_EXT=$(pwd)/tools/mkdtimg/ufdt_verify_overlay_host
 export BSP_BUILD_ANDROID_OS=y
 
-make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y CC=clang LD=ld.lld ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- gta8xx_eur_open_defconfig
+make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- gta8xx_eur_open_defconfig
 
-make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y CC=clang LD=ld.lld ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- KBUILD_SYMTYPES=1 -j12
+make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- KBUILD_SYMTYPES=1 -j12
 
 if [ $? -ne 0 ]; then
     echo "-----------------------------------------------"

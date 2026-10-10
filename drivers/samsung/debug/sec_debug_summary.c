@@ -186,8 +186,8 @@ void sec_debug_save_cpu_freq_voltage(int cpu, int flag, unsigned long value)
 }
 #endif
 
-static uint32_t tzapps_start_addr;
-static uint32_t tzapps_size;
+static uint32_t __maybe_unused tzapps_start_addr;
+static uint32_t __maybe_unused tzapps_size;
 
 void __deprecated sec_debug_summary_secure_app_addr_size(uint32_t addr,
 		uint32_t size)

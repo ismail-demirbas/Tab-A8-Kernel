@@ -1510,7 +1510,7 @@ out_unlock:
 static void cpuset_cancel_attach(struct cgroup_taskset *tset)
 {
 	struct cgroup_subsys_state *css;
-	struct cpuset *cs;
+	struct cpuset *__maybe_unused cs;
 
 	cgroup_taskset_first(tset, &css);
 	cs = css_cs(css);

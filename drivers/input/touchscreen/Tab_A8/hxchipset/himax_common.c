@@ -210,13 +210,13 @@ int g_zero_event_count;
 static bool chip_test_r_flag;
 u8 HX_HW_RESET_ACTIVATE;
 
-static uint8_t AA_press;
+static uint8_t __maybe_unused AA_press;
 static uint8_t EN_NoiseFilter;
-static uint8_t Last_EN_NoiseFilter;
+static uint8_t __maybe_unused Last_EN_NoiseFilter;
 
 static int p_point_num = 0xFFFF;
 static uint8_t p_stylus_num = 0xFF;
-static int probe_fail_flag;
+static int __maybe_unused probe_fail_flag;
 #if defined(HX_USB_DETECT_GLOBAL)
 bool USB_detect_flag;
 #endif
@@ -287,7 +287,7 @@ static int himax_palm_detect(uint8_t *buf)
 
 static ssize_t himax_self_test(struct seq_file *s, void *v)
 {
-	int val = 0x00;
+	int __maybe_unused val = 0x00;
 	size_t ret = 0;
 
 	I("%s: enter, %d\n", __func__, __LINE__);

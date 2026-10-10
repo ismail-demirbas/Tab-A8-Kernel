@@ -889,7 +889,7 @@ static int aw882xx_set_rx_en(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
-	struct aw_device *aw_dev;
+	struct aw_device *__maybe_unused aw_dev;
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =
@@ -919,7 +919,7 @@ static int aw882xx_get_rx_en(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
-	struct aw_device *aw_dev;
+	struct aw_device *__maybe_unused aw_dev;
 
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
@@ -949,7 +949,7 @@ static int aw882xx_set_tx_en(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
-	struct aw_device *aw_dev;
+	struct aw_device *__maybe_unused aw_dev;
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =
@@ -979,7 +979,7 @@ static int aw882xx_get_tx_en(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
-	struct aw_device *aw_dev;
+	struct aw_device *__maybe_unused aw_dev;
 
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
@@ -1009,7 +1009,7 @@ static int aw882xx_set_copp_en(struct snd_kcontrol *kcontrol,
 {
 	int ret = -EINVAL;
 	uint32_t ctrl_value = 0;
-	struct aw_device *aw_dev;
+	struct aw_device *__maybe_unused aw_dev;
 	aw_snd_soc_codec_t *codec =
 		aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =

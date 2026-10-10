@@ -42,7 +42,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 	mpi_ptr_t tspace = NULL;
 	mpi_ptr_t rp, ep, mp, bp;
 	mpi_size_t esize, msize, bsize, rsize;
-	int esign, msign, bsign, rsign;
+	int __maybe_unused esign, msign, bsign, rsign;
 	mpi_size_t size;
 	int mod_shift_cnt;
 	int negative_result;

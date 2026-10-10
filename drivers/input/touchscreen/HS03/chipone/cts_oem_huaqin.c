@@ -617,7 +617,7 @@ static void dump_tsdata_to_seq_file(struct seq_file *m,
 
     for (r = 0; r < rows; r++) {
         char linebuf[256] = {0};
-        int len;
+        int __maybe_unused len;
 
         len = dump_tsdata_row_to_buffer(linebuf, sizeof(linebuf),
             data, cols, NULL, "\n", ',');
@@ -702,7 +702,7 @@ static void dump_comp_cap_to_seq_file(struct seq_file *m,
 
     for (r = 0; r < rows; r++) {
         char linebuf[256] = {0};
-        int len;
+        int __maybe_unused len;
 
         len = dump_comp_cap_row_to_buffer(linebuf, sizeof(linebuf),
             data, cols, NULL, "\n", ',');

@@ -3102,7 +3102,7 @@ static int vbc_put_ag_iis_ext_sel_v2(struct snd_kcontrol *kcontrol,
 static int vbc_get_agdsp_access(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	u16 enable;
+	u16 __maybe_unused enable;
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct vbc_codec_priv *vbc_codec = snd_soc_codec_get_drvdata(codec);
 

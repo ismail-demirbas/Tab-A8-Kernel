@@ -95,7 +95,7 @@ static int max_vsync_count;
 static int vsync_count;
 //static struct sprd_dpu_layer wb_layer;
 static int wb_xfbc_en = 1;
-static struct device_node *g_np;
+static struct device_node *__maybe_unused g_np;
 module_param(wb_xfbc_en, int, 0644);
 module_param(max_vsync_count, int, 0644);
 

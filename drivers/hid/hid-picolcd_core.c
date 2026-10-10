@@ -345,7 +345,7 @@ static int picolcd_raw_event(struct hid_device *hdev,
 {
 	struct picolcd_data *data = hid_get_drvdata(hdev);
 	unsigned long flags;
-	int ret = 0;
+	int __maybe_unused ret = 0;
 
 	if (!data)
 		return 1;

@@ -436,7 +436,7 @@ void sec_enhanced_boot_stat_record(const char *buf)
 void sec_boot_stat_add(const char *c)
 {
 	size_t i;
-	unsigned int prefix;
+	unsigned int __maybe_unused prefix;
 	char *android_log;
 	u64 t;
 
@@ -639,7 +639,7 @@ static ssize_t store_suspend_resume(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	static uint64_t t;
+	static uint64_t __maybe_unused t;
 
 	t++;
 

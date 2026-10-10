@@ -2205,7 +2205,7 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data,
 {
 	struct power_supply_battery_info info = { };
 	struct power_supply_battery_ocv_table *table;
-	int ret, delta_clbcnt, alarm_adc, num;
+	int ret, delta_clbcnt, alarm_adc, __maybe_unused num;
 	struct device_node *np = data->dev->of_node;
 	/* HS03 code for SR-SL6215-01-181 by gaochao at 20210724 start */
 	int bat_id = 0;

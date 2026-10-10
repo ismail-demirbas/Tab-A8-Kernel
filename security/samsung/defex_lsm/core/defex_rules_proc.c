@@ -319,7 +319,7 @@ __visible_for_testing int load_rules_common(struct file *f, int flags)
 		res = check_rule_structure(data_buff);
 
 	if (!res) {
-		const unsigned char *policy_data = NULL; /* where additional features like DTM could look for policy data */
+		const unsigned char *policy_data __maybe_unused = NULL; /* where additional features like DTM could look for policy data */
 		if (!(load_flags & (LOAD_FLAG_DPOLICY | LOAD_FLAG_DPOLICY_SYSTEM))) {
 			if (rules_size > sizeof(packed_rules_primary)) {
 				res = -1;

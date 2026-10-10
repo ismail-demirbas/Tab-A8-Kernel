@@ -30,7 +30,7 @@
  * race which would result in a small accounting inaccuracy that we can
  * tolerate.
  */
-static long nr_total_pages;
+static long __maybe_unused nr_total_pages;
 
 static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
 {

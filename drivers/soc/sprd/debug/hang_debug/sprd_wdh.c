@@ -72,7 +72,7 @@ extern unsigned int cpu_feed_bitmap;
 
 char sprd_log_buf[SPRD_PRINT_BUF_LEN];
 static int log_buf_pos;
-static int log_length;
+static int __maybe_unused log_length;
 static struct gicd_data *gicd_regs;
 static struct gicc_data *gicc_regs;
 
@@ -403,7 +403,7 @@ static void cpu_stack_data_dump(int cpu)
 	unsigned int *p;
 	unsigned int data;
 	struct pt_regs *pregs = &cpu_context[cpu];
-	mm_segment_t fs;
+	mm_segment_t __maybe_unused fs;
 	char str[sizeof(" 12345678") * 8 + 1];
 
 	/* maybe deadlock here? */

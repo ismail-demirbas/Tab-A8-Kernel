@@ -32,7 +32,7 @@
 static unsigned long membase;
 static unsigned long memphys;
 static unsigned long mem_dma_phys;
-static unsigned int mcdt_reg_size;
+static unsigned int __maybe_unused mcdt_reg_size;
 static unsigned int  mcdt_irq_no;
 
 static struct channel_status g_dac_channel[dac_channel_max];

@@ -87,14 +87,14 @@ static u32 sprd_iommuex_cll_uninit(sprd_iommu_hdl  iommu_hdl)
 	struct sprd_iommu_data *iommu_data = NULL;
 	struct sprd_iommuex_priv *iommu_priv = NULL;
 	u32 iommu_id;
-	u8 pa_out_range_r_en = 0;
-	u8 pa_out_range_w_en = 0;
-	u8 va_out_range_r_en = 0;
-	u8 va_out_range_w_en = 0;
-	u8 invalid_r_en = 0;
-	u8 invalid_w_en = 0;
-	u8 unsecure_r_en = 0;
-	u8 unsecure_w_en = 0;
+	u8 __maybe_unused pa_out_range_r_en = 0;
+	u8 __maybe_unused pa_out_range_w_en = 0;
+	u8 __maybe_unused va_out_range_r_en = 0;
+	u8 __maybe_unused va_out_range_w_en = 0;
+	u8 __maybe_unused invalid_r_en = 0;
+	u8 __maybe_unused invalid_w_en = 0;
+	u8 __maybe_unused unsecure_r_en = 0;
+	u8 __maybe_unused unsecure_w_en = 0;
 
 	if (!iommu_hdl)
 		return SPRD_ERR_INVALID_PARAM;
@@ -153,7 +153,7 @@ static u32 sprd_iommuex_cll_enable(sprd_iommu_hdl iommu_hdl)
 	struct sprd_iommu_data *iommu_data = NULL;
 	struct sprd_iommuex_priv *iommu_priv = NULL;
 	u32 iommu_id;
-	ulong addr_range = 0;
+	ulong __maybe_unused addr_range = 0;
 	ulong pgt_addr_phy = 0;
 	ulong fault_page = 0;
 

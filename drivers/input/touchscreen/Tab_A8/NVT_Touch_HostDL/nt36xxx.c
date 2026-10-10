@@ -2593,7 +2593,7 @@ static int nvt_get_tp_module(void)
 static void nvt_update_module_info(void)
 {
 	int module = 0;
-	int ret = 0;
+	int __maybe_unused ret = 0;
 
 	ts->platdata->md_name = (char *)kzalloc(NVT_XBUF_LEN, GFP_KERNEL);
 	if (ts->platdata->md_name == NULL) {

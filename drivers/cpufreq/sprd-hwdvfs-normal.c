@@ -910,7 +910,7 @@ int sprd_coordinate_dcdc_current_voltage(void *data, u32 dcdc_nr)
 int sprd_dcdc_vol_grade_value_setup(void *data, u32 dcdc_nr)
 {
 	struct cpudvfs_archdata *pdev = (struct cpudvfs_archdata *)data;
-	u32 grade_nr, vol_value, vol_reg, vol_bit, vol_mask;
+	u32 __maybe_unused grade_nr, vol_value, vol_reg, vol_bit, vol_mask;
 	u32 supply_sel_dialog, supply_reg, supply_bit;
 	u32 i;
 	int ret;

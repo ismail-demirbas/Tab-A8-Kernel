@@ -231,7 +231,7 @@ fan54015_charger_set_safety_cur(struct fan54015_charger_info *info, u32 cur)
 static int fan54015_charger_hw_init(struct fan54015_charger_info *info)
 {
 	struct power_supply_battery_info bat_info = { };
-	int voltage_max_microvolt, current_max_ua;
+	int voltage_max_microvolt, __maybe_unused current_max_ua;
 	int ret;
 	/* Tab A8 code for AX6300DEV-11 by wenyaqi at 20210730 start */
 	int bat_id = 0;

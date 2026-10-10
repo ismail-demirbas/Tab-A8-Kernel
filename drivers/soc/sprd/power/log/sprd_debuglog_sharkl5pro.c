@@ -635,7 +635,7 @@ static int mbox_int_handler(char **o1, char **o2, u32 m, u32 s, u32 t)
 
 	struct wakeup_node *node;
 	int inum, ibit, gnum;
-	int grp, bit;
+	int __maybe_unused grp, bit;
 	int ret;
 
 	inum = (m >> 16) & 0xFFFF;
@@ -774,7 +774,7 @@ static int plat_match(u32 major, u32 second, u32 thrid, void *data, int num)
 	struct int_handle_set *pset;
 	int inum, ibit;
 	char **pstr;
-	int pos, i;
+	int __maybe_unused pos, i;
 	int ret;
 
 	if (!data || num != 2) {

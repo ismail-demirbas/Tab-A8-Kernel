@@ -41,7 +41,7 @@ static char *profile_name[AW_PROFILE_MAX] = {
 		"Lowpower", "Bypass", "Mmi", "Fm", "Notification", "Receiver"
 	};
 
-static char ext_dsp_prof_write = AW_EXT_DSP_WRITE_NONE;
+static char __maybe_unused ext_dsp_prof_write = AW_EXT_DSP_WRITE_NONE;
 static DEFINE_MUTEX(g_ext_dsp_prof_wr_lock); /*lock ext wr flag*/
 static unsigned int g_fade_in_time = AW_1000_US / 10;
 static unsigned int g_fade_out_time = AW_1000_US >> 1;

@@ -550,7 +550,7 @@ static bool pkt_use_ackpool(struct sk_buff *skb)
 static netdev_tx_t seth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct seth *seth = netdev_priv(dev);
-	struct seth_dtrans_stats *dt_stats;
+	struct seth_dtrans_stats *__maybe_unused dt_stats;
 	int ret, blk_cnt;
 	bool nodelay, ack_pool;
 

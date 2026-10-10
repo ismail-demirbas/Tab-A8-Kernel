@@ -13,7 +13,7 @@ void sdiohal_print_list_data(struct sdiohal_list_t *data_list,
 {
 	struct mbuf_t *node;
 	int i;
-	unsigned short print_len;
+	unsigned short __maybe_unused print_len;
 	char print_str[64];
 
 	if (!data_list || !data_list->mbuf_head) {
@@ -42,7 +42,7 @@ void sdiohal_print_mbuf_data(int channel, struct mbuf_t *head,
 {
 	struct mbuf_t *node;
 	int i;
-	unsigned short print_len;
+	unsigned short __maybe_unused print_len;
 	char print_str[64];
 
 	if (!head) {
@@ -657,7 +657,7 @@ int sdiohal_tx_list_denq(struct sdiohal_list_t *data_list)
 	struct mchn_ops_t *sdiohal_ops;
 
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 	sdiohal_tx_pop_assignment(data_list);
@@ -725,7 +725,7 @@ int sdiohal_rx_list_dispatch(void)
 	struct mchn_ops_t *sdiohal_ops;
 
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 	if (unlikely(p_data->flag_init != true))
@@ -1112,7 +1112,7 @@ int sdiohal_list_push(int channel, struct mbuf_t *head,
 {
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 	struct mbuf_t *mbuf_node;
 	int i;

@@ -585,7 +585,7 @@ int sblock_get(u8 dst, u8 channel, struct sblock *blk, int timeout)
 {
 	struct sblock_mgr *sblock;
 	struct sblock_ring *ring;
-	volatile struct sblock_ring_header *ringhd;
+	volatile struct sblock_ring_header *__maybe_unused ringhd;
 	volatile struct sblock_ring_header *poolhd;
 	int txpos, index;
 	int rval = 0;
@@ -951,7 +951,7 @@ int sblock_release(u8 dst, u8 channel, struct sblock *blk)
 {
 	struct sblock_mgr *sblock;
 	struct sblock_ring *ring;
-	volatile struct sblock_ring_header *ringhd;
+	volatile struct sblock_ring_header *__maybe_unused ringhd;
 	volatile struct sblock_ring_header *poolhd;
 	struct smsg mevt;
 	unsigned long flags;

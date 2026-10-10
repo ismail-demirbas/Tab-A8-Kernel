@@ -802,7 +802,7 @@ static int gsp_lite_r2p0_core_parse_irq(struct gsp_core *core)
 int gsp_lite_r2p0_core_parse_dt(struct gsp_core *core)
 {
 	int ret = -1;
-	struct device *dev = NULL;
+	struct device *__maybe_unused dev = NULL;
 	struct gsp_lite_r2p0_core *lite_r2p0_core = NULL;
 
 	dev = container_of(&core->node, struct device, of_node);

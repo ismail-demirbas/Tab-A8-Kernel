@@ -415,7 +415,7 @@ static int sprd_ptm_legacy_thread(void *data)
 	struct file *bm_perf_file = NULL;
 	mm_segment_t old_fs;
 	u32 bm_read_cnt = 0;
-	int rval;
+	int __maybe_unused rval;
 
 	while (!kthread_should_stop()) {
 		wait_for_completion(&sdev->comp);

@@ -42,7 +42,7 @@ static ssize_t enable_apetb_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct apetb_device *csdev = dev_get_drvdata(dev);
-	int val;
+	int __maybe_unused val;
 
 	val = tmc_enable_sink_show(csdev->apetb_sink);
 

@@ -203,7 +203,7 @@ int audio_sblock_poll_wait(uint8_t dst, uint8_t channel,
 	struct sblock_ring *ring = NULL;
 
 	volatile struct sblock_ring_header *ringhd = NULL;
-	volatile struct sblock_ring_header *poolhd = NULL;
+	volatile struct sblock_ring_header *__maybe_unused poolhd = NULL;
 	unsigned int mask = 0;
 
 	if (!sblock)
@@ -833,7 +833,7 @@ int audio_sblock_send_finish(uint8_t dst, uint8_t channel)
 	struct sblock_mgr *sblock =
 		(struct sblock_mgr *)sblocks[dst][channel];
 	struct sblock_ring *ring;
-	volatile struct sblock_ring_header *ringhd;
+	volatile struct sblock_ring_header *__maybe_unused ringhd;
 	int rval = 0;
 
 	if (!sblock || sblock->state != SBLOCK_STATE_READY) {
@@ -859,7 +859,7 @@ int audio_sblock_receive(
 	struct sblock_mgr *sblock = sblocks[dst][channel];
 	struct sblock_ring *ring;
 	volatile struct sblock_ring_header *ringhd;
-	volatile struct sblock_ring_header *poolhd;
+	volatile struct sblock_ring_header *__maybe_unused poolhd;
 	int rxpos, index, rval = 0;
 	unsigned long flags;
 
@@ -999,7 +999,7 @@ int audio_sblock_release(uint8_t dst, uint8_t channel, struct sblock *blk)
 {
 	struct sblock_mgr *sblock = (struct sblock_mgr *)sblocks[dst][channel];
 	struct sblock_ring *ring = NULL;
-	volatile struct sblock_ring_header *ringhd = NULL;
+	volatile struct sblock_ring_header *__maybe_unused ringhd = NULL;
 	volatile struct sblock_ring_header *poolhd = NULL;
 	unsigned long flags;
 	int rxpos;

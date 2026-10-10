@@ -1953,7 +1953,7 @@ static inline void musb_sprd_offload_shutdown(struct musb *musb)
 static void musb_sprd_disable_all_interrupts(struct musb *musb)
 {
 	void __iomem	*mbase = musb->mregs;
-	u16	temp;
+	u16	__maybe_unused temp;
 	u32	i;
 	u32	intr;
 

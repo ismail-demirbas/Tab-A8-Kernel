@@ -505,7 +505,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 				struct usb_interface *iface, void *priv)
 {
 	struct device *dev;
-	struct usb_device *udev;
+	struct usb_device *__maybe_unused udev;
 	int retval = 0;
 
 	if (!iface)

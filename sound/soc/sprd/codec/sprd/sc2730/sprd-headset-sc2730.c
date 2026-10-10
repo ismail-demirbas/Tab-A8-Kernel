@@ -990,7 +990,7 @@ static int sprd_button_ideal_adc(struct sprd_headset *hdst)
 	struct sprd_headset_platform_data *pdata = &hdst->pdata;
 	struct iio_channel *chan = hdst->adc_chan;
 	int adc_mic_average = 0, adc_ideal, adc_value,
-		i = 0, insert_state, did_times;
+		i = 0, insert_state, __maybe_unused did_times;
 
 	headset_reg_set_bits(ANA_HDT3, HEDET_V2AD_EN);
 	sprd_headset_scale_set(0);
@@ -1459,8 +1459,8 @@ static enum sprd_headset_type sprd_headset_get_type(void)
 	struct sprd_headset *hdst = sprd_hdst;
 	struct sprd_headset_platform_data *pdata;
 	int mic_vol_0, mic_vol_1, try_count = 0, vol_3pole,
-		left_vol_0, left_vol_1, left_vol_min, gnd_vol,
-		mic_max_vol;
+		left_vol_0, left_vol_1, left_vol_min, __maybe_unused gnd_vol,
+		__maybe_unused mic_max_vol;
 
 	if (!hdst)
 		return HEADSET_TYPE_ERR;
@@ -1846,7 +1846,7 @@ static void headset_button_work_func(struct work_struct *work)
 	struct sprd_headset_platform_data *pdata = (hdst ? &hdst->pdata : NULL);
 	int btn_irq_trig_level;
 	int insert_status;
-	struct iio_channel *chan;
+	struct iio_channel *__maybe_unused chan;
 
 	if (!hdst || !pdata) {
 		pr_err("%s: sprd_hdst(%p) or pdata(%p) is NULL!\n",
@@ -2310,7 +2310,7 @@ static void headset_detect_all_work_func(struct work_struct *work)
 {
 	struct sprd_headset *hdst = sprd_hdst;
 	struct sprd_headset_platform_data *pdata = (hdst ? &hdst->pdata : NULL);
-	int plug_state_current = 0, insert_all_data_last, ret;
+	int plug_state_current = 0, __maybe_unused insert_all_data_last, ret;
 	bool trig_level, insert_status = false, detect_value = false;
 
 	if (!hdst) {

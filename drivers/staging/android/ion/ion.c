@@ -81,7 +81,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 					    unsigned long flags)
 {
 	struct ion_buffer *buffer;
-	struct sg_table *table;
+	struct sg_table *__maybe_unused table;
 	int i, ret;
 	struct scatterlist *sg;
 	struct timeval time;

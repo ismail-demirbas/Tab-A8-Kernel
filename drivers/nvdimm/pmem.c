@@ -307,7 +307,7 @@ static int pmem_attach_disk(struct device *dev,
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	struct vmem_altmap __altmap, *altmap = NULL;
+	struct vmem_altmap __altmap = {}, *altmap = NULL;
 	int nid = dev_to_node(dev), fua, wbc;
 	struct resource *res = &nsio->res;
 	struct nd_pfn *nd_pfn = NULL;

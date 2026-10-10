@@ -308,7 +308,7 @@ int dfs_auto_disable(void)
 
 void dfs_register_save(void)
 {
-	int err;
+	int __maybe_unused err;
 	struct smsg msg;
 
 	if (g_dfs_data->socdump_flag) {

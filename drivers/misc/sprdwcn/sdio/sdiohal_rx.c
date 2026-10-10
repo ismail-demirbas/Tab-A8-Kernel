@@ -100,7 +100,7 @@ static int sdiohal_rx_list_parser(struct sdiohal_list_t *data_list,
 	struct mbuf_t *mbuf_node, *mbuf_next;
 	unsigned int node_num, i;
 	int inout = 0, channel;
-	unsigned int parse_len;
+	unsigned int __maybe_unused parse_len;
 
 	sdiohal_list_check(data_list, __func__, SDIOHAL_READ);
 
@@ -233,7 +233,7 @@ int sdiohal_rx_thread(void *data)
 	static char *rx_buf;
 	struct sdiohal_list_t *data_list;
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 	param.sched_priority = SDIO_RX_TASK_PRIO;

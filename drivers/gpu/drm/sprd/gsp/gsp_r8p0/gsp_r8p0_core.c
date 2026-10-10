@@ -818,7 +818,7 @@ static int gsp_r8p0_core_parse_irq(struct gsp_core *core)
 int gsp_r8p0_core_parse_dt(struct gsp_core *core)
 {
 	int ret = -1;
-	struct device *dev = NULL;
+	struct device *__maybe_unused dev = NULL;
 	struct gsp_r8p0_core *r8p0_core = NULL;
 
 	dev = container_of(&core->node, struct device, of_node);
@@ -1592,9 +1592,9 @@ int gsp_r8p0_core_trigger(struct gsp_core *c)
 
 int gsp_r8p0_core_release(struct gsp_core *c)
 {
-	struct gsp_r8p0_core *core = NULL;
+	struct gsp_r8p0_core *__maybe_unused core = NULL;
 	struct gsp_kcfg *kcfg = NULL;
-	struct gsp_r8p0_cfg *cfg = NULL;
+	struct gsp_r8p0_cfg *__maybe_unused cfg = NULL;
 
 	core = (struct gsp_r8p0_core *)c;
 

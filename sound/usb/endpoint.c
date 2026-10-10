@@ -326,7 +326,7 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 		unsigned long flags;
 		struct snd_usb_packet_info *uninitialized_var(packet);
 		struct snd_urb_ctx *ctx = NULL;
-		struct urb *urb;
+		struct urb *__maybe_unused urb;
 		int err, i;
 
 		spin_lock_irqsave(&ep->lock, flags);
@@ -981,7 +981,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	int is_pcm_24bit = 0;
 	int is_offload_mod;
 	int iis_width;
-	int ofld_rate;
+	int __maybe_unused ofld_rate;
 
 	if (atomic_read(&ep->chip->shutdown))
 		return -EBADFD;
@@ -1121,7 +1121,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 {
 	struct snd_usb_substream *subs;
 	struct usb_hcd *hcd;
-	int is_mono, is_pcm_24bit, is_offload_mod, iis_width, ofld_rate;
+	int is_mono, is_pcm_24bit, is_offload_mod, iis_width, __maybe_unused ofld_rate;
 
 	if (!ep)
 		return;

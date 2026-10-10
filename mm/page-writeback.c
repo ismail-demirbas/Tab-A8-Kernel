@@ -1656,7 +1656,6 @@ static void balance_dirty_pages(struct address_space *mapping,
 	struct backing_dev_info *bdi = wb->bdi;
 	bool strictlimit = bdi->capabilities & BDI_CAP_STRICTLIMIT;
 	unsigned long start_time = jiffies;
-	unsigned long logtime_stamp = jiffies;
 
 	for (;;) {
 		unsigned long now = jiffies;
@@ -1870,7 +1869,6 @@ pause:
 			unsigned long nr_dirty_inodes_in_timelist = 0; /* # of dirty inodes in b_dirty_time list */
 			struct inode *inode;
 
-			logtime_stamp = jiffies;
 			spin_lock(&wb->list_lock);
 			list_for_each_entry(inode, &wb->b_dirty_time, i_io_list) {
 				if (inode->i_state & I_DIRTY) {

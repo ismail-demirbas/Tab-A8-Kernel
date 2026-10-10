@@ -554,7 +554,7 @@ void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	spinlock_t *lock;
-	bool listener = false;
+	bool __maybe_unused listener = false;
 	int done;
 
 	if (sk_unhashed(sk))

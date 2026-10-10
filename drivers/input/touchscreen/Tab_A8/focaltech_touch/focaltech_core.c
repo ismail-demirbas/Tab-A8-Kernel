@@ -644,7 +644,7 @@ static int fts_input_report_key(struct fts_ts_data *data, int index)
 static int fts_input_report_b(struct fts_ts_data *data)
 {
     int i = 0;
-    int uppoint = 0;
+    int __maybe_unused uppoint = 0;
     int touchs = 0;
     bool va_reported = false;
     u32 max_touch_num = data->pdata->max_touch_number;

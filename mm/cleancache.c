@@ -29,10 +29,10 @@ static const struct cleancache_ops *cleancache_ops __read_mostly;
  * properly configured.  These are for information only so are not protected
  * against increment races.
  */
-static u64 cleancache_succ_gets;
-static u64 cleancache_failed_gets;
-static u64 cleancache_puts;
-static u64 cleancache_invalidates;
+static u64 __maybe_unused cleancache_succ_gets;
+static u64 __maybe_unused cleancache_failed_gets;
+static u64 __maybe_unused cleancache_puts;
+static u64 __maybe_unused cleancache_invalidates;
 
 static void cleancache_register_ops_sb(struct super_block *sb, void *unused)
 {

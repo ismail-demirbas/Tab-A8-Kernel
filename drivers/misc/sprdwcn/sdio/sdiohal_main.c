@@ -109,7 +109,7 @@ int sdiohal_sdio_pt_write(unsigned char *src, unsigned int datalen)
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 	int ret;
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 	getnstimeofday(&tm_begin);
@@ -155,7 +155,7 @@ int sdiohal_sdio_pt_read(unsigned char *src, unsigned int datalen)
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 	int ret;
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 	getnstimeofday(&tm_begin);
@@ -202,7 +202,7 @@ static int sdiohal_config_packer_chain(struct sdiohal_list_t *data_list,
 	struct mmc_host *host = sdio_func->card->host;
 	bool fifo = (fix_inc == SDIOHAL_DATA_FIX);
 	uint fn_num = sdio_func->num;
-	uint blk_num, blk_size, max_blk_count, max_req_size;
+	uint blk_num, blk_size, max_blk_count, __maybe_unused max_req_size;
 	struct mbuf_t *mbuf_node;
 	unsigned int sg_count, sg_data_size;
 	unsigned int i, ttl_len = 0, node_num;
@@ -323,7 +323,7 @@ int sdiohal_adma_pt_write(struct sdiohal_list_t *data_list)
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 	int ret;
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 
@@ -371,7 +371,7 @@ int sdiohal_adma_pt_read(struct sdiohal_list_t *data_list)
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 	int ret;
 	struct timespec tm_begin, tm_end;
-	static long time_total_ns;
+	static long __maybe_unused time_total_ns;
 	static int times_count;
 
 	getnstimeofday(&tm_begin);

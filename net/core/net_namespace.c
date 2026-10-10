@@ -40,7 +40,7 @@ struct net init_net = {
 };
 EXPORT_SYMBOL(init_net);
 
-static bool init_net_initialized;
+static bool __maybe_unused init_net_initialized;
 
 #define MIN_PERNET_OPS_ID	\
 	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))

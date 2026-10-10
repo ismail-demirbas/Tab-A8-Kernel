@@ -4390,7 +4390,7 @@ unsigned int __handle_speculative_fault(struct mm_struct *mm,
 		.address = address,
 	};
 	pgd_t *pgd, pgdval;
-	p4d_t *p4d, p4dval;
+	p4d_t *p4d, __maybe_unused p4dval;
 	pud_t pudval;
 	int seq;
 	unsigned int ret = VM_FAULT_RETRY;

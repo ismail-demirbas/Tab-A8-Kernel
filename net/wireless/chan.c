@@ -465,7 +465,7 @@ bool cfg80211_is_sub_chan(struct cfg80211_chan_def *chandef,
 			  struct ieee80211_channel *chan)
 {
 	int width;
-	u32 cf_offset, freq;
+	u32 __maybe_unused cf_offset, freq;
 
 	if (chandef->chan->center_freq == chan->center_freq)
 		return true;

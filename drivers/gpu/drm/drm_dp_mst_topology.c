@@ -322,7 +322,7 @@ static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
 				      u8 *replybuf, u8 replybuflen, bool hdr)
 {
 	int ret;
-	u8 crc4;
+	u8 __maybe_unused crc4;
 
 	if (hdr) {
 		u8 hdrlen;
@@ -1031,7 +1031,7 @@ static u8 drm_dp_calculate_rad(struct drm_dp_mst_port *port,
  */
 static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 {
-	int ret;
+	int __maybe_unused ret;
 	u8 rad[6], lct;
 	bool send_link = false;
 	switch (port->pdt) {
@@ -1057,7 +1057,7 @@ static bool drm_dp_port_setup_pdt(struct drm_dp_mst_port *port)
 
 static void drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, u8 *guid)
 {
-	int ret;
+	int __maybe_unused ret;
 
 	memcpy(mstb->guid, guid, 16);
 
@@ -1564,7 +1564,7 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 				     struct drm_dp_mst_branch *mstb)
 {
-	int len;
+	int __maybe_unused len;
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
 
@@ -1618,7 +1618,7 @@ static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_dp_mst_branch *mstb,
 					   struct drm_dp_mst_port *port)
 {
-	int len;
+	int __maybe_unused len;
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
 
@@ -1686,7 +1686,7 @@ static int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 	struct drm_dp_mst_branch *mstb;
-	int len, ret, port_num;
+	int __maybe_unused len, ret, port_num;
 	u8 sinks[DRM_DP_MAX_SDP_STREAMS];
 	int i;
 
@@ -1938,7 +1938,7 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_dp_mst_port *port,
 				  int offset, int size, u8 *bytes)
 {
-	int len;
+	int __maybe_unused len;
 	int ret;
 	struct drm_dp_sideband_msg_tx *txmsg;
 	struct drm_dp_mst_branch *mstb;
@@ -2195,7 +2195,7 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 {
 	int len;
 	u8 replyblock[32];
-	int replylen, origlen, curreply;
+	int replylen, __maybe_unused origlen, curreply;
 	int ret;
 	struct drm_dp_sideband_msg_rx *msg;
 	int basereg = up ? DP_SIDEBAND_MSG_UP_REQ_BASE : DP_SIDEBAND_MSG_DOWN_REP_BASE;
@@ -2962,7 +2962,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		u8 buf[DP_PAYLOAD_TABLE_SIZE];
-		int ret;
+		int __maybe_unused ret;
 
 		ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, buf, DP_RECEIVER_CAP_SIZE);
 		seq_printf(m, "dpcd: %*ph\n", DP_RECEIVER_CAP_SIZE, buf);

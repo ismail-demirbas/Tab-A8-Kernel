@@ -1224,7 +1224,7 @@ static int sec_reset_reason_dbg_part_notifier_callback(
 		struct notifier_block *nfb, unsigned long action, void *data)
 {
 	ap_health_t *p_health;
-	uint32_t rr_data;
+	uint32_t __maybe_unused rr_data;
 
 	switch (action) {
 	case DBG_PART_DRV_INIT_DONE:

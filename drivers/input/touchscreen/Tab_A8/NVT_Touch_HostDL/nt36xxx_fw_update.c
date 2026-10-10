@@ -636,7 +636,7 @@ return:
 static int32_t nvt_write_firmware(const u8 *fwdata, size_t fwsize, uint8_t full)
 {
 	uint32_t list = 0;
-	char *name;
+	char *__maybe_unused name;
 	uint32_t BIN_addr, SRAM_addr, size;
 	int32_t ret = 0;
 

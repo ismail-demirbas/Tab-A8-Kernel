@@ -965,7 +965,7 @@ static int audio_mem_orca_probe(struct platform_device *pdev)
 	u32 val_arr[2];
 	struct resource res;
 	struct device_node *memnp;
-	u32 ddr32_size;
+	u32 __maybe_unused ddr32_size;
 
 	if (!np) {
 		pr_err("%s, np is NULL!\n", __func__);

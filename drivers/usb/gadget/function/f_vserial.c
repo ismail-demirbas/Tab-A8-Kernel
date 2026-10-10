@@ -58,7 +58,7 @@ static bool s_in_bypass_mode;
 #endif
 
 static const char vser_shortname[] = "vser";
-static int tx_req_count;
+static int __maybe_unused tx_req_count;
 
 struct vser_dev {
 	struct usb_function function;
@@ -1079,7 +1079,7 @@ static void vser_test_works(struct work_struct *work)
 	struct vser_dev *dev = _vser_dev;
 	struct usb_composite_dev *cdev = dev->cdev;
 	struct usb_request *req_recv = NULL, *req_sent = NULL;
-	int count, offset, total, ret;
+	int count, __maybe_unused offset, total, ret;
 	int test_mode = dev->test_mode & 0x03;
 	int free_req_count = 0;
 	unsigned long start_times = jiffies;

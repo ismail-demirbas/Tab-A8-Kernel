@@ -255,7 +255,7 @@ int dptx_write_bytes_to_i2c(struct dptx *dptx,
  */
 int dptx_aux_transfer(struct dptx *dptx, struct drm_dp_aux_msg *aux_msg)
 {
-	u8 req;
+	u8 __maybe_unused req;
 	void *buf;
 	int len;
 	u32 addr, hpdsts;

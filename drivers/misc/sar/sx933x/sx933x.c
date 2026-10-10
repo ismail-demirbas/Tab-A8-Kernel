@@ -789,7 +789,7 @@ static ssize_t sx933x_onoff_store(struct device *dev,
     int ret;
     psx93XX_t this = sar_this;
     psx933x_t pDevice = NULL;
-    struct _buttonInfo *buttons = NULL;
+    struct _buttonInfo *__maybe_unused buttons = NULL;
     struct input_dev *capsense_right_up = NULL;
     struct input_dev *capsense_right_mid = NULL;
     struct input_dev *capsense_right_down = NULL;
@@ -896,7 +896,7 @@ static void sx933x_reg_init(psx93XX_t this)
  */
 static int initialize(psx93XX_t this)
 {
-    int ret;
+    int __maybe_unused ret;
     if (this)
     {
         pr_info("[SX933x]: SX933x income initialize\n");

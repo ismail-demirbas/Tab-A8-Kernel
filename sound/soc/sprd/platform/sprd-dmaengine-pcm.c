@@ -668,7 +668,7 @@ static void sprd_pcm_dma_buf_done(void *data)
 	struct sprd_runtime_data *rtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *srtd = dma_cb_data->substream->private_data;
 	int i = 0;
-	struct audio_pm_dma *pm_dma;
+	struct audio_pm_dma *__maybe_unused pm_dma;
 
 	pm_dma = get_pm_dma();
 	if (!rtd->cb_called) {
@@ -795,7 +795,7 @@ static int sprd_pcm_request_dma_channel(
 	struct sprd_runtime_data *rtd = runtime->private_data;
 	struct dma_chan *dma_chn_request = NULL;
 	struct sprd_pcm_dma_params *dma_data = rtd->params;
-	struct audio_pm_dma *pm_dma;
+	struct audio_pm_dma *__maybe_unused pm_dma;
 	struct dma_chan *temp_dma_chan;
 
 	pm_dma = get_pm_dma();
@@ -1037,13 +1037,13 @@ static int sprd_pcm_hw_params(struct snd_pcm_substream *substream,
 	size_t totsize = params_buffer_bytes(params);
 	size_t period = params_period_bytes(params);
 	dma_addr_t dma_buff_phys[SPRD_PCM_CHANNEL_MAX];
-	struct i2s_config *config = NULL;
+	struct i2s_config *__maybe_unused config = NULL;
 	int ret = 0;
 	int i = 0;
 	int ch_cnt;
 	int is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	struct dma_async_tx_descriptor *tmp_tx_des;
-	struct audio_pm_dma *pm_dma;
+	struct audio_pm_dma *__maybe_unused pm_dma;
 
 	pm_dma = get_pm_dma();
 
@@ -1212,7 +1212,7 @@ static int sprd_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct sprd_pcm_dma_params *dma = rtd->params;
 	int i;
 	struct dma_chan *temp_dma_chan;
-	struct audio_pm_dma *pm_dma;
+	struct audio_pm_dma *__maybe_unused pm_dma;
 
 	sp_asoc_pr_info("%s, %s cpu_dai->id = %d %s\n", __func__,
 		sprd_dai_pcm_name(srtd->cpu_dai), srtd->cpu_dai->id,
@@ -1254,7 +1254,7 @@ static int sprd_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct sprd_pcm_dma_params *dma = rtd->params;
 	int ret = 0;
 	int i;
-	struct audio_pm_dma *pm_dma;
+	struct audio_pm_dma *__maybe_unused pm_dma;
 
 	pm_dma = get_pm_dma();
 	sp_asoc_pr_info("%s, %s cpu_dai->id = %d Trigger %s cmd:%d\n", __func__,
@@ -1330,7 +1330,7 @@ static snd_pcm_uframes_t sprd_pcm_pointer(struct snd_pcm_substream *substream)
 	int bytes_of_pointer = -1;
 	int shift = 1;
 	enum AUDIO_MEM_TYPE_E tranf = rtd->transform_type;
-	struct audio_pm_dma *pm_dma;
+	struct audio_pm_dma *__maybe_unused pm_dma;
 
 	pm_dma = get_pm_dma();
 

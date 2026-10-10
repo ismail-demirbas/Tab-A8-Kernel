@@ -32,7 +32,7 @@ static struct tracer_flags nop_flags = {
 	.opts = nop_opts
 };
 
-static struct trace_array	*ctx_trace;
+static struct trace_array	*__maybe_unused ctx_trace;
 
 static void start_nop_trace(struct trace_array *tr)
 {

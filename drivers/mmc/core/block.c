@@ -1266,7 +1266,7 @@ void mmc_card_error_logging(struct mmc_card *card, struct mmc_blk_request *brq, 
 	struct mmc_card_error_log *err_log;
 	int index = 0;
 	int error = 0;
-	bool noti = false;
+	bool __maybe_unused noti = false;
 	u32 val = 0;
 
 	err_log = card->err_log;

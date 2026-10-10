@@ -1326,7 +1326,7 @@ static int sec_errp_extra_show(struct seq_file *m, void *v)
 	unsigned int reset_reason;
 	rst_exinfo_t *p_rst_exinfo = NULL;
 	_kern_ex_info_t *p_kinfo = NULL;
-	int cpu = -1;
+	int __maybe_unused cpu = -1;
 	char upload_cause_str[80] = {0,};
 	char buf[EXTEND_RR_SIZE] = {0, };
 

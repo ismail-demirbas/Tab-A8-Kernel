@@ -2098,7 +2098,7 @@ static int memblock_memsize_show(struct seq_file *m, void *private)
 	seq_printf(m, "v2\n");
 	for (i = 0; i < memsize_rgn_count; i++)
 	{
-		phys_addr_t base, end;
+		phys_addr_t base, __maybe_unused end;
 		long size;
 
 		rgn = &memsize_rgn[i];

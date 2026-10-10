@@ -97,7 +97,7 @@ static unsigned long nsec_low(unsigned long long nsec)
 	return do_div(nsec, 1000000000);
 }
 
-static align_offset;
+static int align_offset;
 
 static void dump_align(void)
 {

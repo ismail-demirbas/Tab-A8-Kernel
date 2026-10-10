@@ -528,7 +528,7 @@ void jbd2_journal_write_revoke_records(transaction_t *transaction,
 	struct jbd2_revoke_record_s *record;
 	struct jbd2_revoke_table_s *revoke;
 	struct list_head *hash_list;
-	int i, offset, count;
+	int i, offset, __maybe_unused count;
 
 	descriptor = NULL;
 	offset = 0;

@@ -595,7 +595,7 @@ static bool get_normal_p_running_status(int stream)
 
 static int vbc_normal_resume(void)
 {
-	struct aud_pm_vbc *pm_vbc;
+	struct aud_pm_vbc *__maybe_unused pm_vbc;
 
 	pm_vbc = aud_pm_vbc_get();
 	restore_access();
@@ -614,7 +614,7 @@ static int vbc_normal_resume(void)
  */
 static int vbc_normal_suspend(void)
 {
-	struct aud_pm_vbc *pm_vbc;
+	struct aud_pm_vbc *__maybe_unused pm_vbc;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int is_startup;
 
@@ -7537,7 +7537,7 @@ int vbc_of_setup(struct platform_device *pdev)
 static int vbc_drv_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct vbc_codec_priv *vbc_codec = NULL;
+	struct vbc_codec_priv *__maybe_unused vbc_codec = NULL;
 
 	pr_info("%s: to setup vbc dt\n", __func__);
 	/* 1. probe CODEC */

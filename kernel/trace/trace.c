@@ -162,7 +162,7 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf);
 static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
 static char *default_bootup_tracer;
 
-static bool allocate_snapshot;
+static bool __maybe_unused allocate_snapshot;
 
 static int __init set_cmdline_ftrace(char *str)
 {

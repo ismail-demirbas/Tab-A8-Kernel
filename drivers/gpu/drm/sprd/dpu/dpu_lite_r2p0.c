@@ -287,7 +287,7 @@ static u32 enhance_en;
 
 static DECLARE_WAIT_QUEUE_HEAD(wait_queue);
 static bool panel_ready = true;
-static bool need_scale;
+static bool __maybe_unused need_scale;
 //static bool is_scaling;
 static bool evt_update;
 static bool evt_stop;

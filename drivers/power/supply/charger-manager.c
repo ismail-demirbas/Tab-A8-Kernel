@@ -3981,7 +3981,7 @@ static void check_charging_duration(struct charger_manager *cm)
 {
 	struct charger_desc *desc = cm->desc;
 	u64 curr = ktime_to_ms(ktime_get());
-	u64 duration;
+	u64 __maybe_unused duration;
 	int ret = false;
 
 	if (!desc->charging_max_duration_ms &&
@@ -3993,7 +3993,7 @@ static void check_charging_duration(struct charger_manager *cm)
 		return;
 
 	if (cm->charger_enabled) {
-		int batt_ocv, diff;
+		int batt_ocv, __maybe_unused diff;
 
 		ret = get_batt_ocv(cm, &batt_ocv);
 		if (ret) {
@@ -7075,7 +7075,7 @@ static int hq_disable_chg_ic_timer(struct charger_manager *cm)
 
 void hq_update_charing_count(struct charger_manager *cm)
 {
-	u64 curr;
+	u64 __maybe_unused curr;
 	/* HS03 code for SL6215DEV-734 by shixuanxuan at 20210906 start */
 	int ret;
 	/* HS03 code for SL6215DEV-734 by shixuanxuan at 20210906 end */
@@ -7109,7 +7109,7 @@ void hq_update_charing_count(struct charger_manager *cm)
 	return;
 }
 
-static hq_get_uisoc(struct charger_manager *cm)
+static int hq_get_uisoc(struct charger_manager *cm)
 {
 	int uisoc;
 

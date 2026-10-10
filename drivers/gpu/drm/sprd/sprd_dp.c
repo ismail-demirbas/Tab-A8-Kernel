@@ -497,7 +497,7 @@ static int sprd_dp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
 	struct sprd_dp *dp = dev_get_drvdata(dev);
-	struct video_params *vparams = NULL;
+	struct video_params *__maybe_unused vparams = NULL;
 	int ret;
 
 	ret = sprd_dp_encoder_init(drm, dp);

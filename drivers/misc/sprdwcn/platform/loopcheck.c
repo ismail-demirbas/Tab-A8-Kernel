@@ -121,7 +121,7 @@ static int loopcheck_send(char *cmd, unsigned int len)
 
 static void loopcheck_work_queue(struct work_struct *work)
 {
-	int ret;
+	int __maybe_unused ret;
 	char a[64];
 	unsigned long timeleft;
 	unsigned long long sprdwcn_rx_cnt_a = 0, sprdwcn_rx_cnt_b = 0;

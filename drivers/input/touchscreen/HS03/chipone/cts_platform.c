@@ -386,7 +386,7 @@ int cts_plat_spi_read_delay_idle(struct cts_platform_data *pdata, u8 dev_addr,
 
 int cts_plat_is_normal_mode(struct cts_platform_data *pdata)
 {
-    struct chipone_ts_data *cts_data;
+    struct chipone_ts_data *__maybe_unused cts_data;
     u8 tx_buf[4] = {0};
     u16 fwid;
     u32 addr;
@@ -423,7 +423,7 @@ static void cts_plat_handle_irq(struct cts_platform_data *pdata)
 static irqreturn_t cts_plat_irq_handler(int irq, void *dev_id)
 {
     struct cts_platform_data *pdata;
-    struct chipone_ts_data *cts_data;
+    struct chipone_ts_data *__maybe_unused cts_data;
 
     cts_dbg("IRQ handler");
 

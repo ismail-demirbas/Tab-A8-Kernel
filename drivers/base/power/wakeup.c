@@ -1091,7 +1091,7 @@ void pm_wakep_autosleep_enabled(bool set)
 }
 #endif /* CONFIG_PM_AUTOSLEEP */
 
-static struct dentry *wakeup_sources_stats_dentry;
+static struct dentry *__maybe_unused wakeup_sources_stats_dentry;
 
 /**
  * print_wakeup_source_stats - Print wakeup source statistics information.

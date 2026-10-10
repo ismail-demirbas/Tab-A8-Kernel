@@ -841,7 +841,7 @@ int ip4_do_xfrm_frag(struct net *net, struct sock *sk, struct sk_buff *skb,
 {
 	struct iphdr *iph;
 	int ptr;
-	struct net_device *dev;
+	struct net_device *__maybe_unused dev;
 	struct sk_buff *skb2;
 	unsigned int mtu, hlen, left, len, ll_rs;
 	int offset;

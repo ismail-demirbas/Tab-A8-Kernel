@@ -3706,7 +3706,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	struct usb_hub		*hub = usb_get_intfdata(intf);
 	struct usb_device	*hdev = hub->hdev;
 	unsigned		port1;
-	int			status;
+	int			__maybe_unused status;
 
 	/*
 	 * Warn if children aren't already suspended.

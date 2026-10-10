@@ -500,10 +500,10 @@ static void request_send_firmware(struct shub_data *sensor,
 				  int sensor_type,
 				  struct sensor_cali_info *cali_info)
 {
-	struct fwshub_head *fw_head = NULL;
+	struct fwshub_head *__maybe_unused fw_head = NULL;
 	char *cali_data;
 	char *fw_data;
-	struct iic_unit *fw_body = NULL;
+	struct iic_unit *__maybe_unused fw_body = NULL;
 	char firmware_name[128];
 	int i, size;
 	int ret;
@@ -784,7 +784,7 @@ static int shub_sipc_read(struct shub_data *sensor,
 			  u8 reg_addr, u8 *data, u8 len)
 {
 	int err = 0;
-	int wait_ret;
+	int __maybe_unused wait_ret;
 
 	if (reader_flag == 0) {
 		dev_info(&sensor->sensor_pdev->dev, "run kthread\n");
@@ -854,7 +854,7 @@ static int shub_download_opcodefile(struct shub_data *sensor)
 
 static void shub_send_ap_status(struct shub_data *sensor, u8 status)
 {
-	int ret = 0;
+	int __maybe_unused ret = 0;
 
 	dev_info(&sensor->sensor_pdev->dev, "status=%d\n", status);
 	if (sensor->mcu_mode <= SHUB_OPDOWNLOAD) {
@@ -1051,8 +1051,8 @@ static int send_lcd_info(struct shub_data *sensor)
 }
 /* HS03 code for SL6215DEV-3827 by liuguangqiang at 2021/12/15 end */
 /*Tab A8 code for SR-AX6300-01-65 by xiongxiaoliang at 2021/08/25 start*/
-static first_light_calibration_data_send(struct shub_data *sensor);
-static second_light_calibration_data_send(struct shub_data *sensor);
+static int first_light_calibration_data_send(struct shub_data *sensor);
+static int second_light_calibration_data_send(struct shub_data *sensor);
 static void shub_download_calibration_data_work(struct work_struct *work)
 {
 	struct shub_data *sensor = container_of(work,
@@ -2128,7 +2128,7 @@ static ssize_t second_light_calibration_status_show(struct device *dev,
 static DEVICE_ATTR_RO(second_light_calibration_status);
 
 /*Send calibration coefficient to CM4 and dynamic loading part during initialization*/
-static first_light_calibration_data_send(struct shub_data *sensor)
+static int first_light_calibration_data_send(struct shub_data *sensor)
 {
     int err;
     struct file *pfile;
@@ -2184,7 +2184,7 @@ static first_light_calibration_data_send(struct shub_data *sensor)
     return 0;
 }
 
-static second_light_calibration_data_send(struct shub_data *sensor)
+static int second_light_calibration_data_send(struct shub_data *sensor)
 {
     int err;
     struct file *pfile;

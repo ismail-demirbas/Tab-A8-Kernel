@@ -1787,9 +1787,9 @@ int gsp_r9p0_core_trigger(struct gsp_core *c)
 
 int gsp_r9p0_core_release(struct gsp_core *c)
 {
-	struct gsp_r9p0_core *core = NULL;
+	struct gsp_r9p0_core *__maybe_unused core = NULL;
 	struct gsp_kcfg *kcfg = NULL;
-	struct gsp_r9p0_cfg *cfg = NULL;
+	struct gsp_r9p0_cfg *__maybe_unused cfg = NULL;
 
 	core = (struct gsp_r9p0_core *)c;
 

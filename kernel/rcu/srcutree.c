@@ -506,7 +506,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	unsigned long flags;
 	unsigned long gpseq;
 	int idx;
-	int idxnext;
+	int __maybe_unused idxnext;
 	unsigned long mask;
 	struct srcu_data *sdp;
 	struct srcu_node *snp;

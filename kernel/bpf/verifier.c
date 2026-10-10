@@ -203,7 +203,7 @@ struct bpf_call_arg_meta {
 /* verbose verifier prints what it's seeing
  * bpf_check() is called under lock, so no race to access these global vars
  */
-static u32 log_level, log_size, log_len;
+static u32 log_level, log_size;
 
 static DEFINE_MUTEX(bpf_verifier_lock);
 
@@ -9002,7 +9002,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 		log_level = attr->log_level;
 		log_ubuf = (char __user *) (unsigned long) attr->log_buf;
 		log_size = attr->log_size;
-		log_len = 0;
 
 		ret = -EINVAL;
 		/* log_* values have to be sane */

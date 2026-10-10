@@ -140,3 +140,4 @@ obj-$(CONFIG_TOUCHSCREEN_HIMAX_CHIPSET_OT9) += Tab_A7_Unisoc/hxchipset/
 obj-$(CONFIG_TOUCHSCREEN_NT36XXX_HOSTDL_SPI_OT9) += Tab_A7_Unisoc/NVT_Touch/
 # Tab A7 T618 code for SR-AX6189A-01-148 by suyurui at 2021/12/22 end
 # Tab A7 T618 end
+CFLAGS_of_touchscreen.o += $(call cc-disable-warning, bitwise-instead-of-logical)

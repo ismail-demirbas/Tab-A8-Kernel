@@ -66,7 +66,7 @@ struct knox_meta_param {
 
 static unsigned int knoxvpn_uidpid(struct sk_buff *skb, u_int32_t newmark)
 {
-	int szMetaData;
+	int __maybe_unused szMetaData;
 	struct skb_shared_info *knox_shinfo = NULL;
 
 	szMetaData = sizeof(struct knox_meta_param);

@@ -185,7 +185,7 @@ int gsp_sync_fence_process(struct gsp_layer *layer,
 {
 	int ret = 0;
 	int wait_fd = -1;
-	int share_fd = -1;
+	int __maybe_unused share_fd = -1;
 	enum gsp_layer_type type = GSP_INVAL_LAYER;
 
 	if (IS_ERR_OR_NULL(layer)

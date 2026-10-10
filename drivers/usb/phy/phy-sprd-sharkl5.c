@@ -395,7 +395,7 @@ static void sprd_hsphy_dpdm_switch_to_phy(struct usb_phy *x, bool enable)
 }
 
 /* Tab A8 code for AX6300DEV-1831 by zhaichao at 20211029 start */
-static struct device *second_detect_dev = NULL;
+static struct device *__maybe_unused second_detect_dev = NULL;
 /* Tab A8 code for AX6300DEV-1831 by zhaichao at 20211029 end */
 
 static int sc2730_voltage_cali(int voltage)

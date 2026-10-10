@@ -727,7 +727,7 @@ static ssize_t ncm_copy_data_user_64(char __user *buf, size_t count)
 	struct knox_socket_metadata kcm = {0};
 	struct knox_user_socket_metadata user_copy = {0};
 
-	unsigned long copied;
+	unsigned long __maybe_unused copied;
 	int read = 0;
 
 	if (mutex_lock_interruptible(&ncm_lock)) {

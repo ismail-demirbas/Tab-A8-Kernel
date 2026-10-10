@@ -473,7 +473,7 @@ error_free:
 			x->encap->encap_type == UDP_ENCAP_ESPINUDP) : 0) {
 		/*check do udp checksum*/
 		struct ipv6hdr *ip6hdr;
-		struct udphdr *uh;
+		struct udphdr *__maybe_unused uh;
 
 		ip6hdr = ipv6_hdr(skb);
 		if (ip6hdr->nexthdr == NEXTHDR_UDP) {

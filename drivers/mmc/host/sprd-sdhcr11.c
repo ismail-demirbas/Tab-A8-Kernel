@@ -439,7 +439,7 @@ static void sprd_adma_mark_end(struct sprd_sdhc_host *host, void *desc)
 static int sprd_sdhc_adma_table_pre(struct sprd_sdhc_host *host,
 	struct mmc_data *data)
 {
-	int direction;
+	int __maybe_unused direction;
 
 	u8 *desc;
 	u8 *align;

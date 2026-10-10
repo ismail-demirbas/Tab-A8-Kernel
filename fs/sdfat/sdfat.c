@@ -4356,7 +4356,7 @@ static inline void __flush_delayed_meta(struct super_block *sb, s32 sync)
 
 static void sdfat_write_super(struct super_block *sb)
 {
-	int time = 0;
+	int __maybe_unused time = 0;
 
 	__lock_super(sb);
 

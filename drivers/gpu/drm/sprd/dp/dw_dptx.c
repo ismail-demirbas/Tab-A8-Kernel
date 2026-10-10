@@ -152,7 +152,7 @@ static int handle_hotplug(struct dptx *dptx)
 	int retval, ret_dpcd;
 	u32 phyifctrl;
 	u8 byte = 0;
-	struct video_params *vparams;
+	struct video_params *__maybe_unused vparams;
 	u8 rev;
 
 	vparams = &dptx->vparams;

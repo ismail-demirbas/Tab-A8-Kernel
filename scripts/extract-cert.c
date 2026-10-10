@@ -1,3 +1,4 @@
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 /* Extract X.509 certificate in DER form from PKCS#11 or PEM.
  *
  * Copyright © 2014-2015 Red Hat, Inc. All Rights Reserved.

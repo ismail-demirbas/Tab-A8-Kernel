@@ -386,7 +386,7 @@ static ssize_t himax_layout_write(char *buf, size_t len)
 {
 	struct himax_ts_data *ts = private_ts;
 	char buf_tmp[5] = {0};
-	int i = 0, j = 0, k = 0, ret;
+	int i = 0, j = 0, k = 0, __maybe_unused ret;
 	unsigned long value;
 	int layout[4] = {0};
 
@@ -1841,7 +1841,7 @@ static int himax_diag_print(struct seq_file *s, void *v)
 	int x_num = ic_data->HX_RX_NUM;
 	int y_num = ic_data->HX_TX_NUM;
 	size_t ret = 0;
-	uint16_t mutual_num, self_num, width;
+	uint16_t __maybe_unused mutual_num, __maybe_unused self_num, __maybe_unused width;
 
 	mutual_num	= x_num * y_num;
 	self_num	= x_num + y_num;

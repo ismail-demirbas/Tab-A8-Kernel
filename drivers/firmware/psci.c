@@ -54,7 +54,7 @@
  * a Trusted OS even if it claims to be capable of migration -- doing so will
  * require cooperation with a Trusted OS driver.
  */
-static int resident_cpu = -1;
+static int __maybe_unused resident_cpu = -1;
 
 struct psci_operations psci_ops = {
 	.conduit = PSCI_CONDUIT_NONE,

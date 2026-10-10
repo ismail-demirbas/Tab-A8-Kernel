@@ -187,12 +187,12 @@ static u8 g_inbox_send;
 static u32 g_inbox_irq_mask;
 
 static unsigned long max_total_irq_proc_time;
-static unsigned long max_total_irq_cnt;
+static unsigned long __maybe_unused max_total_irq_cnt;
 
 static int g_restore_cnt;
-static int g_inbox_block_cnt;
-static int g_outbox_full_cnt;
-static int g_skip_msg;
+static int __maybe_unused g_inbox_block_cnt;
+static int __maybe_unused g_outbox_full_cnt;
+static int __maybe_unused g_skip_msg;
 static unsigned int g_recv_cnt[MBOX_MAX_CORE_CNT];
 static unsigned int g_send_cnt[MBOX_MAX_CORE_CNT];
 

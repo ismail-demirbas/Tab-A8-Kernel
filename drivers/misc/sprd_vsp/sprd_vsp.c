@@ -634,7 +634,7 @@ static int vsp_release(struct inode *inode, struct file *filp)
 {
 	struct vsp_fh *vsp_fp = filp->private_data;
 	int instance_cnt = atomic_read(&vsp_instance_cnt);
-	int ret;
+	int __maybe_unused ret;
 
 	if (vsp_fp == NULL) {
 		pr_err("%s error occurred, vsp_fp == NULL\n", __func__);

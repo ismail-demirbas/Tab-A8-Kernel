@@ -128,7 +128,7 @@ void log_buffer_flush(void)
 void defex_print_msg(const enum defex_log_level msg_type, const char *format, ...)
 {
 	char msg[MAX_LEN];
-	int msg_len, ktime_msg_len = 0;
+	int msg_len __maybe_unused, ktime_msg_len = 0;
 	va_list aptr;
 	static const char header[] = DEFEX_LOG_TAG;
 

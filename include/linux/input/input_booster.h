@@ -41,9 +41,9 @@
 		ssize_t input_booster_sysfs_class_show_##_ATTR_(struct class *dev, struct class_attribute *attr, char *buf) \
 		{ \
 			ssize_t ret; \
-			unsigned int enable_event; \
-			unsigned int debug_level; \
-			unsigned int sendevent; \
+			unsigned int __maybe_unused enable_event; \
+			unsigned int __maybe_unused debug_level; \
+			unsigned int __maybe_unused sendevent; \
 			enable_event = enable_event_booster; \
 			debug_level = debug_flag; \
 			sendevent = send_ev_enable; \
@@ -102,7 +102,7 @@
 		int values[MAX_RES_COUNT + 1] = {0,}; \
 		int i = 0; \
 		int offset = 0; \
-		int dataCnt = 0; \
+		int __maybe_unused dataCnt = 0; \
 		pr_booster("[Input Booster8] %s buf : %s\n", __func__, buf); \
 		if (ib_dt == NULL) \
 			return count; \

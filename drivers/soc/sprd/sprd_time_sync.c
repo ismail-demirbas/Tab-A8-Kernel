@@ -124,7 +124,7 @@ static int sprd_time_sync_parse_dt(struct sprd_time_sync_init_data **init,
 
 static inline void sprd_time_sync_destroy_pdata(struct sprd_time_sync_init_data **init)
 {
-	struct sprd_time_sync_init_data *pdata = *init;
+	struct sprd_time_sync_init_data *__maybe_unused pdata = *init;
 
 	pdata = NULL;
 }

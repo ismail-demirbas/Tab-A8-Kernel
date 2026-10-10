@@ -80,13 +80,13 @@ struct acc_dev {
 	/* online indicates state of function_set_alt & function_unbind
 	 * set to 1 when we connect
 	 */
-	int online:1;
+	unsigned int online:1;
 
 	/* disconnected indicates state of open & release
 	 * Set to 1 when we disconnect.
 	 * Not cleared until our file is closed.
 	 */
-	int disconnected:1;
+	unsigned int disconnected:1;
 
 	/* strings sent by the host */
 	char manufacturer[ACC_STRING_SIZE];
@@ -1322,7 +1322,7 @@ static void acc_free_inst(struct usb_function_instance *fi)
 static struct usb_function_instance *acc_alloc_inst(void)
 {
 	struct acc_instance *fi_acc;
-	struct acc_dev *dev;
+	struct acc_dev *__maybe_unused dev;
 	int err;
 
 	fi_acc = kzalloc(sizeof(*fi_acc), GFP_KERNEL);

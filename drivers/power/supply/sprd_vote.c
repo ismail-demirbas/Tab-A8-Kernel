@@ -415,7 +415,7 @@ static ssize_t voted_value_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", bufinfo);
 }
 
-static sprd_vote_register_sysfs(struct device *dev)
+static int sprd_vote_register_sysfs(struct device *dev)
 {
 	struct sprd_vote_sysfs *sysfs;
 	int ret;

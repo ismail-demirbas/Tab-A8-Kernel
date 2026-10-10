@@ -1855,7 +1855,7 @@ static void sprd_codec_psg_process(struct snd_soc_codec *codec, int hi_lo)
 
 void sprd_codec_intc_irq(struct snd_soc_codec *codec, u32 int_shadow)
 {
-	u32 val_s, val_n, val_fgu;
+	u32 val_s, val_n, __maybe_unused val_fgu;
 
 	val_n = PA_DCCAL_INT_SHADOW_STATUS |
 		PA_CLK_CAL_INT_SHADOW_STATUS |
@@ -3687,7 +3687,7 @@ static void aud_glb_reg_read(struct snd_info_entry *entry,
 {
 	int i = 0, j = 0;
 	struct glb_reg_dump *aud_glb_reg = NULL;
-	struct glb_reg_dump *reg_p = NULL;
+	struct glb_reg_dump *__maybe_unused reg_p = NULL;
 
 	aud_glb_reg = devm_kzalloc(entry->card->dev,
 				   sizeof(struct glb_reg_dump) * REG_PAIR_NUM,

@@ -18,7 +18,7 @@ static u32 sprd_iommuvau_cll_init(struct sprd_iommu_init_param *init_param,
 {
 	struct sprd_iommu_data *iommu_data = NULL;
 	struct sprd_iommuvau_priv *iommu_priv = NULL;
-	u32 iommu_id;
+	u32 __maybe_unused iommu_id;
 	unsigned int pagt_size = 0;
 
 	if (!iommu_hdl)
@@ -85,14 +85,14 @@ static u32 sprd_iommuvau_cll_uninit(sprd_iommu_hdl  iommu_hdl)
 	struct sprd_iommu_data *iommu_data = NULL;
 	struct sprd_iommuvau_priv *iommu_priv = NULL;
 	u32 iommu_id;
-	u8 pa_out_range_r_en = 0;
-	u8 pa_out_range_w_en = 0;
-	u8 va_out_range_r_en = 0;
-	u8 va_out_range_w_en = 0;
-	u8 invalid_r_en = 0;
-	u8 invalid_w_en = 0;
-	u8 unsecure_r_en = 0;
-	u8 unsecure_w_en = 0;
+	u8 __maybe_unused pa_out_range_r_en = 0;
+	u8 __maybe_unused pa_out_range_w_en = 0;
+	u8 __maybe_unused va_out_range_r_en = 0;
+	u8 __maybe_unused va_out_range_w_en = 0;
+	u8 __maybe_unused invalid_r_en = 0;
+	u8 __maybe_unused invalid_w_en = 0;
+	u8 __maybe_unused unsecure_r_en = 0;
+	u8 __maybe_unused unsecure_w_en = 0;
 
 	if (!iommu_hdl)
 		return SPRD_ERR_INVALID_PARAM;
@@ -151,7 +151,7 @@ static u32 sprd_iommuvau_cll_enable(sprd_iommu_hdl iommu_hdl)
 	struct sprd_iommu_data *iommu_data = NULL;
 	struct sprd_iommuvau_priv *iommu_priv = NULL;
 	u32 iommu_id;
-	ulong addr_range = 0;
+	ulong __maybe_unused addr_range = 0;
 	ulong pgt_addr_phy = 0;
 	ulong fault_page = 0;
 
@@ -390,7 +390,7 @@ static u32 sprd_iommuvau_cll_unmap_orphaned(sprd_iommu_hdl iommu_hdl,
 	u64 align_map_size = 0;
 	struct sprd_iommu_data *iommu_data = NULL;
 	struct sprd_iommuvau_priv *iommu_priv = NULL;
-	u32 iommu_id;
+	u32 __maybe_unused iommu_id;
 
 	if ((!iommu_hdl) || (!unmap_param))
 		return SPRD_ERR_INVALID_PARAM;
