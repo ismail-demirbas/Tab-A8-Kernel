@@ -5288,6 +5288,14 @@ static void sdfat_debug_kill_sb(struct super_block *sb)
 }
 #endif /* CONFIG_SDFAT_DBG_IOCTL */
 
+static struct file_system_type exfat_fs_type = {
+	.owner       = THIS_MODULE,
+	.name        = "exfat",
+	.mount       = sdfat_fs_mount,
+	.kill_sb     = kill_block_super,
+	.fs_flags    = FS_REQUIRES_DEV,
+};
+
 static struct file_system_type sdfat_fs_type = {
 	.owner       = THIS_MODULE,
 	.name        = "sdfat",
@@ -5337,6 +5345,8 @@ static int __init init_sdfat_fs(void)
 	}
 
 	err = register_filesystem(&sdfat_fs_type);
+	if (!err)
+		err = register_filesystem(&exfat_fs_type);
 	if (err) {
 		pr_err("[SDFAT] failed to register filesystem\n");
 		goto error;
@@ -5379,6 +5389,7 @@ static void __exit exit_sdfat_fs(void)
 	}
 
 	sdfat_destroy_inodecache();
+	unregister_filesystem(&exfat_fs_type);
 	unregister_filesystem(&sdfat_fs_type);
 
 	fsapi_shutdown();
