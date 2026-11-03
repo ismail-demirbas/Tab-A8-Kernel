@@ -4,6 +4,77 @@
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
+fail() {
+    echo -e "${RED}Error: $1${NC}" >&2
+    exit 1
+}
+
+center_text() {
+    local text="$1" color="${2:-$NC}" width
+    width=$(tput cols 2>/dev/null) || width=80
+    [[ "$width" =~ ^[0-9]+$ ]] || width=80
+    local padding=$(((width - ${#text}) / 2))
+    (( padding < 0 )) && padding=0
+    printf "%*s%b%s%b\n" "$padding" "" "$color" "$text" "$NC"
+}
+
+# Default: KSU + SUSFS enabled
+KSU_OPTION=y
+
+usage() {
+    echo "Usage: ./build.sh [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -ksu y       Enable KSU + SUSFS"
+    echo "  -ksu n       Disable KSU + SUSFS"
+    echo "  -h, --help   Show this help message"
+    echo
+    echo "Default: KSU + SUSFS enabled"
+    echo
+    echo "Examples:"
+    echo "  ./build.sh"
+    echo "  ./build.sh -ksu y"
+    echo "  ./build.sh -ksu n"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -ksu|--ksu)
+            if [[ $# -lt 2 ]]; then
+                echo -e "${RED}Error: Missing value for $1. Use y or n.${NC}"
+                echo
+                usage
+                exit 1
+            fi
+
+            case "${2,,}" in
+                y) KSU_OPTION=y ;;
+                n) KSU_OPTION=n ;;
+                *)
+                    echo -e "${RED}Error: Invalid KSU option: $2${NC}"
+                    echo "Valid values: y or n"
+                    echo
+                    usage
+                    exit 1
+                    ;;
+            esac
+
+            shift 2
+            ;;
+
+        -h|--help)
+            usage
+            exit 0
+            ;;
+
+        *)
+            echo -e "${RED}Error: Unknown option: $1${NC}"
+            echo
+            usage
+            exit 1
+            ;;
+    esac
+done
 
 export CROSS_COMPILE=aarch64-linux-gnu-
 export ARCH=arm64
@@ -82,101 +153,46 @@ export DTC_OVERLAY_TEST_EXT=$(pwd)/tools/mkdtimg/ufdt_apply_overlay
 export DTC_OVERLAY_VTS_EXT=$(pwd)/tools/mkdtimg/ufdt_verify_overlay_host
 export BSP_BUILD_ANDROID_OS=y
 
-make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- gta8xx_eur_open_defconfig
+CONFIG_TARGETS=(gta8xx_eur_open_defconfig)
 
-make -C $(pwd) O=$(pwd)/out BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- KBUILD_SYMTYPES=1 -j12
+if [[ "$KSU_OPTION" == "y" ]]; then
+    CONFIG_TARGETS+=(ksu_susfs.config)
+fi
 
-if [ $? -ne 0 ]; then
+echo "KSU + SUSFS: $KSU_OPTION"
+
+make -C "$(pwd)" O="$(pwd)/out" BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- "${CONFIG_TARGETS[@]}" || fail "Kernel configuration failed. Check the defconfig and configuration fragments."
+
+if ! make -C "$(pwd)" O="$(pwd)/out" BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CLANG_TRIPLE=aarch64-linux-gnu- KBUILD_SYMTYPES=1 -j12; then
     echo "-----------------------------------------------"
     echo -e "${RED}Kernel build failed!${NC}"
     echo "-----------------------------------------------"
-    exit 1
+    fail "Kernel compilation failed. Check the compiler output above."
 fi
 
 cp out/arch/arm64/boot/Image $(pwd)/arch/arm64/boot/Image
+cp out/arch/arm64/boot/Image AnyKernel3/Image \
+    || fail "Failed to copy the compiled kernel Image to AnyKernel3/"
 
-MKBOOTIMG="$(pwd)/mkbootimg/mkbootimg.py"
-OUT_KERNEL="$(pwd)/out/arch/arm64/boot/Image"
-DTB_RAMDISK_DIR="$(pwd)/build"
-AVB_PACKER="$(pwd)/build/pack_boot_avb.py"
-MAGISKBOOT="$(pwd)/build/magiskboot"
+cd AnyKernel3 || fail "Failed to enter AnyKernel3 directory."
 
-CMDLINE="console=ttyS1,115200n8"
-BASE="0x00000000"
-KOFFSET="0x00008000"
-ROFFSET="0x01000000"
-SECOFFSET="0x00000000"
-DTBOFFSET="0x01f00000"
-TAGSOFFSET="0x00000100"
-PAGESZ="2048"
+if [[ "$KSU_OPTION" == "y" ]]; then
+    KSU_SUFFIX="-KSU"
+else
+    KSU_SUFFIX=""
+fi
 
-build_boot() {
-    local NAME=$1
-    local BOARD=$2
-    local DEVDIR=$3
+command -v zip >/dev/null 2>&1 \
+    || fail "Missing tool: zip. Please install the zip package."
 
-    local PAYLOAD="$(pwd)/out/${NAME}_payload.img"
-    local OUTPUT="$(pwd)/out/${NAME}_boot.img"
-    local AVB_DIR="$DEVDIR"
-    local RAMDISK_GZ="$(pwd)/out/${NAME}_ramdisk.gz"
+ZIP_NAME="TabA8-Kernel-Extended${KSU_SUFFIX}-$(date +%Y%m%d).zip"
 
-    echo "-----------------------------------------------"
-    echo "Building boot.img for $NAME..."
-    echo "-----------------------------------------------"
+zip -r9 "../out/$ZIP_NAME" * -x .git README.md '*placeholder' \
+    || fail "Failed to create kernel ZIP package."
 
-    "$MAGISKBOOT" compress=gzip \
-        "$DEVDIR/ramdisk.cpio" \
-        "$RAMDISK_GZ"
+cd .. || fail "Failed to return to the kernel source directory."
 
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Ramdisk compression failed for $NAME!${NC}"
-        return 1
-    fi
-
-    $MKBOOTIMG \
-        --header_version 2 \
-        --kernel "$OUT_KERNEL" \
-        --ramdisk "$RAMDISK_GZ" \
-        --dtb "$DEVDIR/dtb" \
-        --cmdline "$CMDLINE" \
-        --base "$BASE" \
-        --kernel_offset "$KOFFSET" \
-        --ramdisk_offset "$ROFFSET" \
-        --second_offset "$SECOFFSET" \
-        --dtb_offset "$DTBOFFSET" \
-        --tags_offset "$TAGSOFFSET" \
-        --board "$BOARD" \
-        --pagesize "$PAGESZ" \
-        --os_version 11.0.0 \
-        --os_patch_level 2025-08 \
-        --output "$PAYLOAD"
-
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}mkbootimg failed for $NAME!${NC}"
-        rm -f "$RAMDISK_GZ" "$PAYLOAD"
-        return 1
-    fi
-
-    "$AVB_PACKER" \
-        "$PAYLOAD" \
-        "$AVB_DIR" \
-        "$OUTPUT"
-
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}AVB packaging failed for $NAME!${NC}"
-        rm -f "$RAMDISK_GZ" "$PAYLOAD"
-        return 1
-    fi
-
-    rm -f "$PAYLOAD" "$RAMDISK_GZ"
-
-    echo "Created: $OUTPUT"
-}
-
-build_boot "X200" "SRPUI28B006" "$DTB_RAMDISK_DIR/sm-x200" || exit 1
-build_boot "X205" "SRPUI28A006" "$DTB_RAMDISK_DIR/sm-x205" || exit 1
-build_boot "X207" "SRPUJ01A006" "$DTB_RAMDISK_DIR/sm-x207" || exit 1
-
-echo "-----------------------------------------------"
-echo -e "${GREEN}[OK] Build finished successfully!${NC}"
-echo "-----------------------------------------------"
+center_text "----------------------------------------------------------------------------"
+center_text "[OK] Build finished successfully!" "$GREEN"
+center_text "Kernel package: $ZIP_NAME"
+center_text "----------------------------------------------------------------------------"
