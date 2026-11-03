@@ -369,12 +369,6 @@ static int sprd_hardware_cpufreq_init(struct cpufreq_policy *policy)
 		goto free_table;
 	}
 
-	if (data->cluster == 0) {
-		policy->min = 1536000;
-	} else if (data->cluster == 1) {
-		policy->min = 1536000;
-	}
-
 #ifdef CONFIG_SMP
 	/* CPUs in the same cluster share a clock and power domain */
 	cpumask_or(policy->cpus, policy->cpus,
@@ -480,21 +474,8 @@ static int sprd_hardware_cpufreq_exit(struct cpufreq_policy *policy)
 	return ret;
 }
 
-extern atomic_t screen_off_freq;
-
 static int sprd_hardware_cpufreq_table_verify(struct cpufreq_policy *policy)
 {
-	struct sprd_cpufreq_driver_data *data = policy->driver_data;
-	unsigned int dyn_min;
-
-	if (data && atomic_read(&screen_off_freq)) {
-		dyn_min = (data->cluster == 0) ? 614400 : 1228800;
-	} else {
-		dyn_min = 1536000;
-	}
-
-	cpufreq_verify_within_limits(policy, dyn_min, policy->cpuinfo.max_freq);
-
 	return cpufreq_generic_frequency_table_verify(policy);
 }
 

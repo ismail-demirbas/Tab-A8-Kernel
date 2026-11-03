@@ -106,12 +106,6 @@
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
-extern int fsync_manual_override;
-extern int fsync_mode_min;
-extern int fsync_mode_max;
-extern int fsync_status_get(struct ctl_table *table, int write,
-			     void __user *buffer, size_t *lenp, loff_t *ppos);
-extern int fsync_status_value;
 extern int suid_dumpable;
 #ifdef CONFIG_COREDUMP
 extern int core_uses_pid;
@@ -324,23 +318,44 @@ static int min_extfrag_threshold;
 static int max_extfrag_threshold = 1000;
 #endif
 
+#ifdef CONFIG_BPF_SYSCALL
+#include <linux/filter.h>
+static int bpf_stats_zero;
+static int bpf_stats_one = 1;
+
+static int bpf_stats_handler(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct static_key *key = (struct static_key *)table->data;
+	static int saved_val;
+	int val, ret;
+	struct ctl_table tmp = {
+		.data   = &val,
+		.maxlen = sizeof(val),
+		.mode   = table->mode,
+		.extra1 = &bpf_stats_zero,
+		.extra2 = &bpf_stats_one,
+	};
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&bpf_stats_enabled_mutex);
+	val = saved_val;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret && val != saved_val) {
+		if (val)
+			static_key_slow_inc(key);
+		else
+			static_key_slow_dec(key);
+		saved_val = val;
+	}
+	mutex_unlock(&bpf_stats_enabled_mutex);
+	return ret;
+}
+#endif
+
 static struct ctl_table kern_table[] = {
-	{
-		.procname	= "fsync_mode",
-		.data		= &fsync_manual_override,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &fsync_mode_min,
-		.extra2		= &fsync_mode_max,
-	},
-	{
-		.procname	= "fsync_status",
-		.data		= &fsync_status_value,
-		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= fsync_status_get,
-	},
 	{
 		.procname	= "sched_child_runs_first",
 		.data		= &sysctl_sched_child_runs_first,
@@ -1311,6 +1326,13 @@ static struct ctl_table kern_table[] = {
 	},
 #endif
 #ifdef CONFIG_BPF_SYSCALL
+	{
+		.procname	= "bpf_stats_enabled",
+		.data		= &bpf_stats_enabled_key.key,
+		.maxlen		= sizeof(bpf_stats_enabled_key),
+		.mode		= 0644,
+		.proc_handler	= bpf_stats_handler,
+	},
 	{
 		.procname	= "unprivileged_bpf_disabled",
 		.data		= &sysctl_unprivileged_bpf_disabled,
