@@ -530,8 +530,9 @@ static int symbols_resolve(struct object *obj)
 
 		id = btf_id__find(root, str);
 		if (id) {
+			if (!id->id)
+				(*nr)--;
 			id->id = type_id;
-			(*nr)--;
 		}
 	}
 

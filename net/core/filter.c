@@ -4387,24 +4387,28 @@ sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 BPF_CALL_5(bpf_skb_load_bytes_relative, const struct sk_buff *, skb,
 	   u32, offset, void *, to, u32, len, u32, start_header)
 {
-	u8 *ptr;
+	u8 *end = skb_tail_pointer(skb);
+	u8 *start, *ptr;
 
-	if (unlikely(offset > 0xffff || len > skb_headlen(skb)))
+	if (unlikely(offset > 0xffff))
 		goto err_clear;
 
 	switch (start_header) {
 	case BPF_HDR_START_MAC:
-		ptr = skb_mac_header(skb) + offset;
+		if (unlikely(!skb_mac_header_was_set(skb)))
+			goto err_clear;
+		start = skb_mac_header(skb);
 		break;
 	case BPF_HDR_START_NET:
-		ptr = skb_network_header(skb) + offset;
+		start = skb_network_header(skb);
 		break;
 	default:
 		goto err_clear;
 	}
 
-	if (likely(ptr >= skb_mac_header(skb) &&
-		   ptr + len <= skb_tail_pointer(skb))) {
+	ptr = start + offset;
+
+	if (likely(ptr + len <= end)) {
 		memcpy(to, ptr, len);
 		return 0;
 	}
@@ -5849,7 +5853,7 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 {
 	const int size_default = sizeof(__u32);
 
-	if (off < 0 || off >= offsetofend(struct __sk_buff, local_port))
+	if (off < 0 || off >= sizeof(struct __sk_buff))
 		return false;
 
 	/* The verifier guarantees that size > 0. */
@@ -5866,9 +5870,21 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 	case bpf_ctx_range_till(struct __sk_buff, remote_ip4, remote_ip4):
 	case bpf_ctx_range_till(struct __sk_buff, local_ip4, local_ip4):
 	case bpf_ctx_range(struct __sk_buff, data):
+	case bpf_ctx_range(struct __sk_buff, data_meta):
 	case bpf_ctx_range(struct __sk_buff, data_end):
 		if (size != size_default)
 			return false;
+		break;
+	case bpf_ctx_range_ptr(struct __sk_buff, flow_keys):
+		return false;
+	case bpf_ctx_range(struct __sk_buff, tstamp):
+		if (size != sizeof(__u64))
+			return false;
+		break;
+	case offsetof(struct __sk_buff, sk):
+		if (type == BPF_WRITE || size != sizeof(__u64))
+			return false;
+		info->reg_type = PTR_TO_SOCK_COMMON_OR_NULL;
 		break;
 	default:
 		/* Only narrow read access allowed for now. */
@@ -7259,6 +7275,8 @@ static bool cg_skb_is_valid_access(int off, int size,
 {
 	switch (off) {
 	case bpf_ctx_range(struct __sk_buff, tc_classid):
+	case bpf_ctx_range(struct __sk_buff, data_meta):
+	case bpf_ctx_range(struct __sk_buff, wire_len):
 		return false;
 	case bpf_ctx_range(struct __sk_buff, sk):
 		if (type == BPF_WRITE || size != sizeof(__u64))

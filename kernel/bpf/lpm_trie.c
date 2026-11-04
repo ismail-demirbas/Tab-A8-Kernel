@@ -192,6 +192,9 @@ static void *trie_lookup_elem(struct bpf_map *map, void *_key)
 	struct lpm_trie_node *node, *found = NULL;
 	struct bpf_lpm_trie_key *key = _key;
 
+	if (key->prefixlen > trie->max_prefixlen)
+		return NULL;
+
 	/* Start walking the trie from the root node ... */
 
 	for (node = rcu_dereference(trie->root); node;) {
@@ -323,6 +326,10 @@ static int trie_update_elem(struct bpf_map *map,
 	 * simply assign the @new_node to that slot and be done.
 	 */
 	if (!node) {
+		if (flags == BPF_EXIST) {
+			ret = -ENOENT;
+			goto out;
+		}
 		rcu_assign_pointer(*slot, new_node);
 		goto out;
 	}
@@ -331,11 +338,19 @@ static int trie_update_elem(struct bpf_map *map,
 	 * which already has the correct data array set.
 	 */
 	if (node->prefixlen == matchlen) {
+		if (!(node->flags & LPM_TREE_NODE_FLAG_IM)) {
+			if (flags == BPF_NOEXIST) {
+				ret = -EEXIST;
+				goto out;
+			}
+			trie->n_entries--;
+		} else if (flags == BPF_EXIST) {
+			ret = -ENOENT;
+			goto out;
+		}
+
 		new_node->child[0] = node->child[0];
 		new_node->child[1] = node->child[1];
-
-		if (!(node->flags & LPM_TREE_NODE_FLAG_IM))
-			trie->n_entries--;
 
 		rcu_assign_pointer(*slot, new_node);
 		kfree_rcu(node, rcu);
@@ -346,6 +361,11 @@ static int trie_update_elem(struct bpf_map *map,
 	/* If the new node matches the prefix completely, it must be inserted
 	 * as an ancestor. Simply insert it between @node and *@slot.
 	 */
+	if (flags == BPF_EXIST) {
+		ret = -ENOENT;
+		goto out;
+	}
+
 	if (matchlen == key->prefixlen) {
 		next_bit = extract_bit(node->data, matchlen);
 		rcu_assign_pointer(new_node->child[next_bit], node);
@@ -389,10 +409,79 @@ out:
 	return ret;
 }
 
-static int trie_delete_elem(struct bpf_map *map, void *key)
+static int trie_delete_elem(struct bpf_map *map, void *_key)
 {
-	/* TODO */
-	return -ENOSYS;
+	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
+	struct bpf_lpm_trie_key *key = _key;
+	struct lpm_trie_node __rcu **trim, **trim2;
+	struct lpm_trie_node *node, *parent;
+	unsigned long irq_flags;
+	unsigned int next_bit;
+	size_t matchlen = 0;
+	int ret = 0;
+
+	if (key->prefixlen > trie->max_prefixlen)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&trie->lock, irq_flags);
+
+	trim = &trie->root;
+	trim2 = trim;
+	parent = NULL;
+	while ((node = rcu_dereference_protected(
+		       *trim, lockdep_is_held(&trie->lock)))) {
+		matchlen = longest_prefix_match(trie, node, key);
+
+		if (node->prefixlen != matchlen ||
+		    node->prefixlen == key->prefixlen)
+			break;
+
+		parent = node;
+		trim2 = trim;
+		next_bit = extract_bit(key->data, node->prefixlen);
+		trim = &node->child[next_bit];
+	}
+
+	if (!node || node->prefixlen != key->prefixlen ||
+	    node->prefixlen != matchlen ||
+	    (node->flags & LPM_TREE_NODE_FLAG_IM)) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	trie->n_entries--;
+
+	if (rcu_access_pointer(node->child[0]) &&
+	    rcu_access_pointer(node->child[1])) {
+		node->flags |= LPM_TREE_NODE_FLAG_IM;
+		goto out;
+	}
+
+	if (parent && (parent->flags & LPM_TREE_NODE_FLAG_IM) &&
+	    !node->child[0] && !node->child[1]) {
+		if (node == rcu_access_pointer(parent->child[0]))
+			rcu_assign_pointer(
+				*trim2, rcu_access_pointer(parent->child[1]));
+		else
+			rcu_assign_pointer(
+				*trim2, rcu_access_pointer(parent->child[0]));
+		kfree_rcu(parent, rcu);
+		kfree_rcu(node, rcu);
+		goto out;
+	}
+
+	if (node->child[0])
+		rcu_assign_pointer(*trim, rcu_access_pointer(node->child[0]));
+	else if (node->child[1])
+		rcu_assign_pointer(*trim, rcu_access_pointer(node->child[1]));
+	else
+		RCU_INIT_POINTER(*trim, NULL);
+	kfree_rcu(node, rcu);
+
+out:
+	raw_spin_unlock_irqrestore(&trie->lock, irq_flags);
+
+	return ret;
 }
 
 #define LPM_DATA_SIZE_MAX	256
@@ -510,9 +599,80 @@ out:
 	kfree(trie);
 }
 
-static int trie_get_next_key(struct bpf_map *map, void *key, void *next_key)
+static int trie_get_next_key(struct bpf_map *map, void *_key, void *_next_key)
 {
-	return -ENOTSUPP;
+	struct lpm_trie_node *node, *next_node = NULL, *parent, *search_root;
+	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
+	struct bpf_lpm_trie_key *key = _key, *next_key = _next_key;
+	struct lpm_trie_node **node_stack = NULL;
+	int err = 0, stack_ptr = -1;
+	unsigned int next_bit;
+	size_t matchlen;
+
+	search_root = rcu_dereference(trie->root);
+	if (!search_root)
+		return -ENOENT;
+
+	if (!key || key->prefixlen > trie->max_prefixlen)
+		goto find_leftmost;
+
+	node_stack = kmalloc_array(trie->max_prefixlen,
+				   sizeof(struct lpm_trie_node *),
+				   GFP_ATOMIC | __GFP_NOWARN);
+	if (!node_stack)
+		return -ENOMEM;
+
+	for (node = search_root; node;) {
+		node_stack[++stack_ptr] = node;
+		matchlen = longest_prefix_match(trie, node, key);
+		if (node->prefixlen != matchlen ||
+		    node->prefixlen == key->prefixlen)
+			break;
+
+		next_bit = extract_bit(key->data, node->prefixlen);
+		node = rcu_dereference(node->child[next_bit]);
+	}
+	if (!node || node->prefixlen != key->prefixlen ||
+	    (node->flags & LPM_TREE_NODE_FLAG_IM))
+		goto find_leftmost;
+
+	node = node_stack[stack_ptr];
+	while (stack_ptr > 0) {
+		parent = node_stack[stack_ptr - 1];
+		if (rcu_dereference(parent->child[0]) == node) {
+			search_root = rcu_dereference(parent->child[1]);
+			if (search_root)
+				goto find_leftmost;
+		}
+		if (!(parent->flags & LPM_TREE_NODE_FLAG_IM)) {
+			next_node = parent;
+			goto do_copy;
+		}
+		node = parent;
+		stack_ptr--;
+	}
+
+	err = -ENOENT;
+	goto free_stack;
+
+find_leftmost:
+	for (node = search_root; node;) {
+		if (node->flags & LPM_TREE_NODE_FLAG_IM) {
+			node = rcu_dereference(node->child[0]);
+		} else {
+			next_node = node;
+			node = rcu_dereference(node->child[0]);
+			if (!node)
+				node = rcu_dereference(next_node->child[1]);
+		}
+	}
+do_copy:
+	next_key->prefixlen = next_node->prefixlen;
+	memcpy((void *)next_key + offsetof(struct bpf_lpm_trie_key, data),
+	       next_node->data, trie->data_size);
+free_stack:
+	kfree(node_stack);
+	return err;
 }
 
 static int trie_map_btf_id;

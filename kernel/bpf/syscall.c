@@ -343,6 +343,8 @@ static ssize_t bpf_dummy_write(struct file *filp, const char __user *buf,
 	return -EINVAL;
 }
 
+static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma);
+
 const struct file_operations bpf_map_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= bpf_map_show_fdinfo,
@@ -350,6 +352,7 @@ const struct file_operations bpf_map_fops = {
 	.release	= bpf_map_release,
 	.read		= bpf_dummy_read,
 	.write		= bpf_dummy_write,
+	.mmap		= bpf_map_mmap,
 };
 
 int bpf_map_new_fd(struct bpf_map *map, int flags)
@@ -884,6 +887,79 @@ static void bpf_map_write_active_dec(struct bpf_map *map)
 bool bpf_map_write_active(const struct bpf_map *map)
 {
 	return atomic64_read(&map->writecnt) != 0;
+}
+
+void *bpf_map_area_mmapable_alloc(u64 size, int numa_node)
+{
+	return __vmalloc_node_range(size, PAGE_SIZE, VMALLOC_START, VMALLOC_END,
+				    GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN | __GFP_ZERO,
+				    PAGE_KERNEL, VM_USERMAP, numa_node,
+				    __builtin_return_address(0));
+}
+
+static void bpf_map_mmap_open(struct vm_area_struct *vma)
+{
+	struct bpf_map *map = vma->vm_file->private_data;
+
+	if (vma->vm_flags & VM_MAYWRITE)
+		bpf_map_write_active_inc(map);
+}
+
+static void bpf_map_mmap_close(struct vm_area_struct *vma)
+{
+	struct bpf_map *map = vma->vm_file->private_data;
+
+	if (vma->vm_flags & VM_MAYWRITE)
+		bpf_map_write_active_dec(map);
+}
+
+static const struct vm_operations_struct bpf_map_default_vmops = {
+	.open		= bpf_map_mmap_open,
+	.close		= bpf_map_mmap_close,
+};
+
+static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct bpf_map *map = filp->private_data;
+	int err = 0;
+
+	if (!map->ops->map_mmap || map_value_has_spin_lock(map))
+		return -ENOTSUPP;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	mutex_lock(&map->freeze_mutex);
+
+	if (vma->vm_flags & VM_WRITE) {
+		if (map->frozen) {
+			err = -EPERM;
+			goto out;
+		}
+		if (map->map_flags & BPF_F_RDONLY_PROG) {
+			err = -EACCES;
+			goto out;
+		}
+		bpf_map_write_active_inc(map);
+	}
+out:
+	mutex_unlock(&map->freeze_mutex);
+	if (err)
+		return err;
+
+	vma->vm_ops = &bpf_map_default_vmops;
+	vma->vm_private_data = map;
+	vma->vm_flags &= ~VM_MAYEXEC;
+	if (!(vma->vm_flags & VM_WRITE))
+		vma->vm_flags &= ~VM_MAYWRITE;
+
+	err = map->ops->map_mmap(map, vma);
+	if (err) {
+		if (vma->vm_flags & VM_WRITE)
+			bpf_map_write_active_dec(map);
+	}
+
+	return err;
 }
 
 static fmode_t map_get_sys_perms(struct bpf_map *map, struct fd f)
@@ -2731,6 +2807,9 @@ static int bpf_prog_test_run(const union bpf_attr *attr,
 
 #define BPF_OBJ_GET_NEXT_ID_LAST_FIELD next_id
 
+extern struct idr btf_idr;
+extern spinlock_t btf_idr_lock;
+
 static int bpf_obj_get_next_id(const union bpf_attr *attr,
 			       union bpf_attr __user *uattr,
 			       struct idr *idr,
@@ -2865,6 +2944,81 @@ static int bpf_map_get_fd_by_id(const union bpf_attr *attr)
 	return fd;
 }
 
+static struct bpf_insn *bpf_insn_prepare_dump(const struct bpf_prog *prog)
+{
+	const struct bpf_map *map;
+	struct bpf_insn *insns;
+	u64 imm;
+	u8 code;
+	int i, j;
+
+	insns = kmemdup(prog->insnsi, bpf_prog_insn_size(prog), GFP_USER);
+	if (!insns)
+		return insns;
+
+	for (i = 0; i < prog->len; i++) {
+		code = insns[i].code;
+
+		if (code == (BPF_JMP | BPF_TAIL_CALL)) {
+			insns[i].code = BPF_JMP | BPF_CALL;
+			insns[i].imm = BPF_FUNC_tail_call;
+			continue;
+		}
+		if (code == (BPF_JMP | BPF_CALL)) {
+			if (!bpf_dump_raw_ok(current_cred()))
+				insns[i].imm = 0;
+			continue;
+		}
+		if (BPF_CLASS(code) == BPF_LDX && BPF_MODE(code) == BPF_PROBE_MEM) {
+			insns[i].code = BPF_LDX | BPF_SIZE(code) | BPF_MEM;
+			continue;
+		}
+		if (code != (BPF_LD | BPF_IMM | BPF_DW))
+			continue;
+
+		imm = ((u64)insns[i + 1].imm << 32) | (u32)insns[i].imm;
+		map = NULL;
+		for (j = 0; j < prog->aux->used_map_cnt; j++) {
+			if (prog->aux->used_maps[j] == (void *)(unsigned long)imm) {
+				map = prog->aux->used_maps[j];
+				break;
+			}
+		}
+		if (map) {
+			insns[i].src_reg = BPF_PSEUDO_MAP_FD;
+			insns[i].imm = map->id;
+			insns[i + 1].imm = 0;
+		}
+		i++;
+	}
+
+	return insns;
+}
+
+static void bpf_prog_get_stats(const struct bpf_prog *prog,
+			       struct bpf_prog_stats *stats)
+{
+	u64 nsecs = 0, cnt = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		const struct bpf_prog_stats *st;
+		unsigned int start;
+		u64 tnsecs, tcnt;
+
+		st = per_cpu_ptr(prog->aux->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_irq(&st->syncp);
+			tnsecs = st->nsecs;
+			tcnt = st->cnt;
+		} while (u64_stats_fetch_retry_irq(&st->syncp, start));
+		nsecs += tnsecs;
+		cnt += tcnt;
+	}
+	stats->nsecs = nsecs;
+	stats->cnt = cnt;
+}
+
 static int set_info_rec_size(struct bpf_prog_info *info)
 {
 	/*
@@ -2927,16 +3081,29 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	memcpy(info.name, prog->aux->name, sizeof(prog->aux->name));
 
 	/* not supported here: do not echo user-provided values back */
-	info.nr_map_ids = 0;
-	info.map_ids = 0;
+	ulen = info.nr_map_ids;
+	info.nr_map_ids = prog->aux->used_map_cnt;
+	ulen = min_t(u32, info.nr_map_ids, ulen);
+	if (ulen) {
+		u32 __user *user_map_ids = u64_to_user_ptr(info.map_ids);
+		u32 i;
+
+		for (i = 0; i < ulen; i++)
+			if (put_user(prog->aux->used_maps[i]->id, &user_map_ids[i]))
+				return -EFAULT;
+	}
 	info.ifindex = 0;
 	info.netns_dev = 0;
 	info.netns_ino = 0;
-	info.btf_id = 0;
 	info.nr_prog_tags = 0;
 	info.prog_tags = 0;
-	info.run_time_ns = 0;
-	info.run_cnt = 0;
+	{
+		struct bpf_prog_stats st;
+
+		bpf_prog_get_stats(prog, &st);
+		info.run_time_ns = st.nsecs;
+		info.run_cnt = st.cnt;
+	}
 
 	if (!bpf_capable()) {
 		info.jited_prog_len = 0;
@@ -2961,9 +3128,17 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	ulen = info.xlated_prog_len;
 	info.xlated_prog_len = bpf_prog_insn_size(prog);
 	if (info.xlated_prog_len && ulen) {
+		struct bpf_insn *insns_sanitized;
+		bool fault;
+
+		insns_sanitized = bpf_insn_prepare_dump(prog);
+		if (!insns_sanitized)
+			return -ENOMEM;
 		uinsns = u64_to_user_ptr(info.xlated_prog_insns);
 		ulen = min_t(u32, info.xlated_prog_len, ulen);
-		if (copy_to_user(uinsns, prog->insnsi, ulen))
+		fault = copy_to_user(uinsns, insns_sanitized, ulen);
+		kfree(insns_sanitized);
+		if (fault)
 			return -EFAULT;
 	}
 
@@ -3644,6 +3819,10 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 	case BPF_MAP_GET_NEXT_ID:
 		err = bpf_obj_get_next_id(&attr, uattr,
 					  &map_idr, &map_idr_lock);
+		break;
+	case BPF_BTF_GET_NEXT_ID:
+		err = bpf_obj_get_next_id(&attr, uattr,
+					  &btf_idr, &btf_idr_lock);
 		break;
 	case BPF_PROG_GET_FD_BY_ID:
 		err = bpf_prog_get_fd_by_id(&attr);

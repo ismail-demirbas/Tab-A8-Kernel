@@ -8,6 +8,7 @@
 #define _LINUX_BPF_H 1
 
 #include <uapi/linux/bpf.h>
+#include <linux/u64_stats_sync.h>
 #include <linux/bpf-cgroup.h>
 
 #include <linux/workqueue.h>
@@ -555,6 +556,14 @@ bool bpf_map_meta_equal(const struct bpf_map *meta0,
 struct bpf_map *bpf_map_get_curr_or_next(u32 *id);
 struct bpf_prog *bpf_prog_get_curr_or_next(u32 *id);
 
+struct bpf_prog_stats {
+	u64 cnt;
+	u64 nsecs;
+	struct u64_stats_sync syncp;
+} __aligned(2 * sizeof(u64));
+
+extern struct mutex bpf_stats_enabled_mutex;
+
 struct bpf_prog_aux {
 	atomic_t refcnt;
 	u32 used_map_cnt;
@@ -576,6 +585,7 @@ struct bpf_prog_aux {
 	const struct bpf_prog_ops *ops;
 #endif
 	struct bpf_map **used_maps;
+	struct bpf_prog_stats __percpu *stats;
 	struct bpf_prog *prog;
 	struct user_struct *user;
 #ifndef __GENKSYMS__
@@ -782,6 +792,34 @@ _out:							\
 		_ret;					\
 	 })
 
+#define BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(array, ctx, func)		\
+	({						\
+		struct bpf_prog_array_item *_item;	\
+		struct bpf_prog *_prog;			\
+		struct bpf_prog_array *_array;		\
+		u32 ret;				\
+		u32 _ret = 1;				\
+		u32 _cn = 0;				\
+		preempt_disable();			\
+		rcu_read_lock();			\
+		_array = rcu_dereference(array);	\
+		_item = &_array->items[0];		\
+		while ((_prog = READ_ONCE(_item->prog))) {		\
+			bpf_cgroup_storage_set(_item->cgroup_storage);	\
+			ret = func(_prog, ctx);		\
+			_ret &= (ret & 1);		\
+			_cn |= (ret & 2);		\
+			_item++;			\
+		}					\
+		rcu_read_unlock();			\
+		preempt_enable_no_resched();		\
+		if (_ret)				\
+			_ret = (_cn ? NET_XMIT_CN : NET_XMIT_SUCCESS);	\
+		else					\
+			_ret = (_cn ? NET_XMIT_DROP : -EPERM);		\
+		_ret;					\
+	})
+
 #define BPF_PROG_RUN_ARRAY(array, ctx, func)		\
 	__BPF_PROG_RUN_ARRAY(array, ctx, func, false)
 
@@ -834,6 +872,7 @@ void bpf_map_uncharge_memlock(struct bpf_map *map, u32 pages);
 void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
 int array_map_alloc_check(union bpf_attr *attr);
 void *bpf_map_area_alloc(size_t size, int numa_node);
+void *bpf_map_area_mmapable_alloc(u64 size, int numa_node);
 void bpf_map_area_free(void *base);
 
 extern int sysctl_unprivileged_bpf_disabled;

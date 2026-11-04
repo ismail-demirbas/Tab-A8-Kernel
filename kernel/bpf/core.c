@@ -93,6 +93,19 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 		return NULL;
 	}
 
+	aux->stats = alloc_percpu_gfp(struct bpf_prog_stats, gfp_flags);
+	if (!aux->stats) {
+		kfree(aux);
+		vfree(fp);
+		return NULL;
+	}
+	{
+		int cpu;
+
+		for_each_possible_cpu(cpu)
+			u64_stats_init(&per_cpu_ptr(aux->stats, cpu)->syncp);
+	}
+
 	fp->pages = size / PAGE_SIZE;
 	fp->aux = aux;
 	fp->aux->prog = fp;
@@ -102,6 +115,10 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	return fp;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_alloc);
+
+DEFINE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
+EXPORT_SYMBOL(bpf_stats_enabled_key);
+DEFINE_MUTEX(bpf_stats_enabled_mutex);
 
 int bpf_prog_alloc_jited_linfo(struct bpf_prog *prog)
 {
@@ -202,6 +219,8 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 
 void __bpf_prog_free(struct bpf_prog *fp)
 {
+	if (fp->aux)
+		free_percpu(fp->aux->stats);
 	kfree(fp->aux);
 	vfree(fp);
 }

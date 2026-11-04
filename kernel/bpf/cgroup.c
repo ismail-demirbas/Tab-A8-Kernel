@@ -910,6 +910,7 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 {
 	unsigned int offset = skb->data - skb_network_header(skb);
 	struct sock *save_sk;
+	void *saved_data_end;
 	struct cgroup *cgrp;
 	int ret;
 
@@ -923,11 +924,19 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	save_sk = skb->sk;
 	skb->sk = sk;
 	__skb_push(skb, offset);
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
-				 bpf_prog_run_save_cb);
+	bpf_compute_and_save_data_end(skb, &saved_data_end);
+	if (type == BPF_CGROUP_INET_EGRESS) {
+		ret = BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(
+			cgrp->bpf.effective[type], skb, bpf_prog_run_save_cb);
+	} else {
+		ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
+					 bpf_prog_run_save_cb);
+		ret = (ret == 1 ? 0 : -EPERM);
+	}
+	bpf_restore_data_end(skb, saved_data_end);
 	__skb_pull(skb, offset);
 	skb->sk = save_sk;
-	return ret == 1 ? 0 : -EPERM;
+	return ret;
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_skb);
 

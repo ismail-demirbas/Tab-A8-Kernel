@@ -1,12 +1,5 @@
 out/
 toolchain/
-*.o
-*.ko
-*.cmd
-.tmp_versions/
-Module.symvers
-modules.order
 *.img
-ak3/Image
-AnyKernel3/
+AnyKernel3/Image
 arch/arm64/boot/Image

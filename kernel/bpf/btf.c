@@ -202,8 +202,8 @@ static inline void *kvcalloc(size_t n, size_t size, gfp_t flags)
 	     i < btf_type_vlen(struct_type);				\
 	     i++, member++)
 
-static DEFINE_IDR(btf_idr);
-static DEFINE_SPINLOCK(btf_idr_lock);
+DEFINE_IDR(btf_idr);
+DEFINE_SPINLOCK(btf_idr_lock);
 
 struct btf {
 	void *data;
@@ -3344,6 +3344,9 @@ static const struct btf_kind_operations var_ops = {
 	.show	= btf_var_show,
 };
 
+extern char __weak __start_BTF[];
+extern char __weak __stop_BTF[];
+
 static s32 btf_datasec_check_meta(struct btf_verifier_env *env,
 				  const struct btf_type *t,
 				  u32 meta_left)
@@ -3386,7 +3389,8 @@ static s32 btf_datasec_check_meta(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		if (vsi->offset < last_vsi_end_off || vsi->offset >= t->size) {
+		if ((vsi->offset < last_vsi_end_off && env->btf->data != __start_BTF) ||
+		    vsi->offset >= t->size) {
 			btf_verifier_log_vsi(env, t, vsi, "Invalid offset");
 			return -EINVAL;
 		}
@@ -3396,7 +3400,8 @@ static s32 btf_datasec_check_meta(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		last_vsi_end_off = vsi->offset + vsi->size;
+		last_vsi_end_off = max_t(u64, last_vsi_end_off,
+					 vsi->offset + vsi->size);
 		if (last_vsi_end_off > t->size) {
 			btf_verifier_log_vsi(env, t, vsi, "Invalid offset+size");
 			return -EINVAL;
@@ -4163,8 +4168,6 @@ static int btf_parse_hdr_kernel(struct btf_verifier_env *env)
 	return 0;
 }
 
-extern char __weak __start_BTF[];
-extern char __weak __stop_BTF[];
 
 extern struct btf *btf_vmlinux;
 

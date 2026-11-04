@@ -16,6 +16,9 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/capability.h>
+#include <linux/security.h>
+#include <linux/bpf.h>
+#include <linux/sched/clock.h>
 #include <linux/cryptohash.h>
 #include <linux/set_memory.h>
 #include <linux/scatterlist.h>
@@ -459,6 +462,9 @@ struct bpf_prog_aux;
 #define bpf_ctx_range_till(TYPE, MEMBER1, MEMBER2)				\
 	offsetof(TYPE, MEMBER1) ... offsetofend(TYPE, MEMBER2) - 1
 
+#define bpf_ctx_range_ptr(TYPE, MEMBER)						\
+	offsetof(TYPE, MEMBER) ... offsetofend(TYPE, MEMBER) - 1
+
 #define bpf_target_off(TYPE, MEMBER, SIZE, PTR_SIZE)				\
 	({									\
 		BUILD_BUG_ON(FIELD_SIZEOF(TYPE, MEMBER) != (SIZE));		\
@@ -582,7 +588,30 @@ static inline void bpf_jit_set_header_magic(struct bpf_binary_header *hdr)
 }
 #endif
 
-#define BPF_PROG_RUN(filter, ctx)  bpf_call_func(filter, ctx)
+DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
+
+#define BPF_PROG_RUN(prog, ctx)	({					\
+	u32 __ret;							\
+	if (static_branch_unlikely(&bpf_stats_enabled_key)) {		\
+		struct bpf_prog_stats *__stats;				\
+		u64 __start = sched_clock();				\
+		__ret = bpf_call_func(prog, ctx);			\
+		__stats = this_cpu_ptr((prog)->aux->stats);		\
+		u64_stats_update_begin(&__stats->syncp);		\
+		__stats->cnt++;						\
+		__stats->nsecs += sched_clock() - __start;		\
+		u64_stats_update_end(&__stats->syncp);			\
+	} else {							\
+		__ret = bpf_call_func(prog, ctx);			\
+	}								\
+	__ret; })
+
+static inline bool bpf_dump_raw_ok(const struct cred *cred)
+{
+	if (kptr_restrict >= 2)
+		return false;
+	return security_capable_noaudit(cred, &init_user_ns, CAP_SYSLOG) == 0;
+}
 
 #define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
 
@@ -600,6 +629,23 @@ static inline void bpf_compute_data_end(struct sk_buff *skb)
 
 	BUILD_BUG_ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
 	cb->data_end = skb->data + skb_headlen(skb);
+}
+
+static inline void bpf_compute_and_save_data_end(
+	struct sk_buff *skb, void **saved_data_end)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	*saved_data_end = cb->data_end;
+	cb->data_end  = skb->data + skb_headlen(skb);
+}
+
+static inline void bpf_restore_data_end(
+	struct sk_buff *skb, void *saved_data_end)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	cb->data_end = saved_data_end;
 }
 
 /* SAPMA: 5.10 migrate_disable/enable yerine preempt_disable/enable (4.14) */
