@@ -2,4 +2,5 @@ out/
 toolchain/
 *.img
 AnyKernel3/Image
+AnyKernel3/kernel
 arch/arm64/boot/Image

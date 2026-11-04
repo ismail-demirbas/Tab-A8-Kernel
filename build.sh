@@ -171,7 +171,7 @@ if ! make -C "$(pwd)" O="$(pwd)/out" BSP_BUILD_DT_OVERLAY=y LLVM=1 ARCH=arm64 CL
 fi
 
 cp out/arch/arm64/boot/Image $(pwd)/arch/arm64/boot/Image
-cp out/arch/arm64/boot/Image AnyKernel3/Image \
+cp out/arch/arm64/boot/Image AnyKernel3/kernel \
     || fail "Failed to copy the compiled kernel Image to AnyKernel3/"
 
 cd AnyKernel3 || fail "Failed to enter AnyKernel3 directory."

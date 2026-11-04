@@ -328,7 +328,7 @@ flash_boot() {
   done;
 
   cd $AKHOME;
-  for i in zImage zImage-dtb Image Image-dtb Image.gz Image.gz-dtb Image.bz2 Image.bz2-dtb Image.lzo Image.lzo-dtb Image.lzma Image.lzma-dtb Image.xz Image.xz-dtb Image.lz4 Image.lz4-dtb Image.fit; do
+  for i in zImage zImage-dtb Image Image-dtb Image.gz Image.gz-dtb Image.bz2 Image.bz2-dtb Image.lzo Image.lzo-dtb Image.lzma Image.lzma-dtb Image.xz Image.xz-dtb Image.lz4 Image.lz4-dtb Image.fit kernel; do
     if [ -f $i ]; then
       kernel=$AKHOME/$i;
       break;
@@ -393,8 +393,8 @@ flash_boot() {
     for i in dtb recovery_dtbo; do
       [ "$(eval echo \$$i)" -a -f $i ] && cp -f $(eval echo \$$i) $i;
     done;
-    case $kernel in
-      *Image*)
+    case "$kernel" in
+  *Image*|*/kernel)
         if [ ! "$magisk_patched" -a ! "$NO_MAGISK_CHECK" ]; then
           magiskboot cpio ramdisk.cpio test;
           magisk_patched=$?;
