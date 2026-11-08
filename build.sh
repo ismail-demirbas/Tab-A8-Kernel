@@ -231,7 +231,7 @@ fi
 command -v zip >/dev/null 2>&1 \
     || fail "Missing tool: zip. Please install the zip package."
 
-ZIP_NAME="TabA8-Kernel-Extended${KSU_SUFFIX}-$(date +%Y%m%d).zip"
+ZIP_NAME="TabA8-Extended-Kernel${KSU_SUFFIX}-$(date +%Y%m%d).zip"
 
 zip -r9 "../out/$ZIP_NAME" * -x .git README.md '*placeholder' \
     || fail "Failed to create kernel ZIP package."

@@ -15,7 +15,7 @@ enum cluster {
 };
 
 int dvfsrc_opp_table[INPUT_BOOSTER_DDR_OPP_NUM] = {
-	1333,
+	1600,
 	1333,
 	1024,
 	768,
