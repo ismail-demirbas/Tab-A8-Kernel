@@ -148,7 +148,7 @@ if [ ! -x "$CLANG_DIR/bin/clang" ]; then
     popd > /dev/null
 fi
 
-export BSP_BUILD_FAMILY=qogirl6
+export BSP_BUILD_FAMILY=sharkl5Pro
 export DTC_OVERLAY_TEST_EXT=$(pwd)/tools/mkdtimg/ufdt_apply_overlay
 export DTC_OVERLAY_VTS_EXT=$(pwd)/tools/mkdtimg/ufdt_verify_overlay_host
 export BSP_BUILD_ANDROID_OS=y
@@ -173,6 +173,52 @@ fi
 cp out/arch/arm64/boot/Image $(pwd)/arch/arm64/boot/Image
 cp out/arch/arm64/boot/Image AnyKernel3/kernel \
     || fail "Failed to copy the compiled kernel Image to AnyKernel3/"
+
+# Package UMS512 DTB and DTBO images
+DTS_DIR="$(pwd)/out/arch/arm64/boot/dts/sprd"
+MKDTIMG="$(pwd)/tools/mkdtimg/mkdtimg"
+ANYKERNEL_DIR="$(pwd)/AnyKernel3"
+
+DTB_FILES=(
+    "$DTS_DIR/ums512.dtb"
+    "$DTS_DIR/ums512-1h10-overlay.dtbo"
+    "$DTS_DIR/ums512-1h10_go-overlay.dtbo"
+    "$DTS_DIR/ums512-25c10-overlay.dtbo"
+    "$DTS_DIR/ums512-2h10-overlay.dtbo"
+    "$DTS_DIR/ums512-wifionly-overlay.dtbo"
+)
+
+[[ -x "$MKDTIMG" ]] || fail "mkdtimg not found or not executable."
+
+for dt_file in "${DTB_FILES[@]}"; do
+    [[ -s "$dt_file" ]] || fail "Missing DTB/DTBO file: $dt_file"
+done
+
+DT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ums512-dt.XXXXXX")"     || fail "Failed to create temporary directory."
+
+cleanup_dt_tmp() {
+    rm -rf "$DT_TMP"
+}
+trap cleanup_dt_tmp EXIT
+
+# Create the single-entry UMS512 DTB table
+"$MKDTIMG" create "$DT_TMP/dtb"     --page_size=2048 --version=0     "$DTS_DIR/ums512.dtb" --id=0x00000000 --rev=0x00000000     || fail "Failed to create DTB image."
+
+# Create the five-entry DTBO table in stock order
+"$MKDTIMG" create "$DT_TMP/dtbo.img"     --page_size=2048 --version=0     "$DTS_DIR/ums512-1h10-overlay.dtbo" --id=0x1100 --rev=0     "$DTS_DIR/ums512-1h10_go-overlay.dtbo" --id=0x1900 --rev=0     "$DTS_DIR/ums512-25c10-overlay.dtbo" --id=0x1100 --rev=0     "$DTS_DIR/ums512-2h10-overlay.dtbo" --id=0x2100 --rev=0     "$DTS_DIR/ums512-wifionly-overlay.dtbo" --id=0x1100 --rev=0     || fail "Failed to create DTBO image."
+
+# Validate generated device tree images
+"$MKDTIMG" dump "$DT_TMP/dtb" > /dev/null     || fail "Generated DTB image is invalid."
+
+"$MKDTIMG" dump "$DT_TMP/dtbo.img" > /dev/null     || fail "Generated DTBO image is invalid."
+
+# Copy generated images into AnyKernel3
+cp "$DT_TMP/dtb" "$ANYKERNEL_DIR/dtb"     || fail "Failed to copy DTB image."
+
+cp "$DT_TMP/dtbo.img" "$ANYKERNEL_DIR/dtbo.img"     || fail "Failed to copy DTBO image."
+
+echo "UMS512 DTB/DTBO packaging completed successfully."
+ls -lh "$ANYKERNEL_DIR/dtb" "$ANYKERNEL_DIR/dtbo.img"
 
 cd AnyKernel3 || fail "Failed to enter AnyKernel3 directory."
 

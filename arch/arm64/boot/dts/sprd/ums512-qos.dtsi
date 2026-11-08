@@ -14,8 +14,8 @@
 
 	gpu_qos: qos@0 {
 		reg = <0>;
-		arqos = [06];
-		awqos = [06];
+		arqos = [08];
+		awqos = [08];
 		arqos-threshold = [0f];
 		awqos-threshold = [0f];
 	};

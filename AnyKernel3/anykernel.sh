@@ -13,8 +13,9 @@ do.cleanuponabort=0
 device.name1=SM-X200
 device.name2=SM-X205
 device.name3=SM-X207
-device.name4=gta8wifi
-device.name5=gta8
+device.name4=gta8
+device.name5=gta8tur
+device.name6=gta8wifi
 supported.versions=
 supported.patchlevels=
 supported.vendorpatchlevels=
@@ -46,6 +47,7 @@ replace_file fstab.ums512_25c10 0644 fstab.ums512_25c10;
 write_boot; # use flash_boot to skip ramdisk repack, e.g. for devices with init_boot ramdisk
 ## end boot install
 
+flash_generic vbmeta;
 
 ## init_boot files attributes
 #init_boot_attributes() {

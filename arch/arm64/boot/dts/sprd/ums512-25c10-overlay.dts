@@ -939,7 +939,7 @@
 &ddr_dfs {
 	sprd-scene = "boost", "lcdon", "lcdoff", "camlow",
 		"camhigh", "camveryhigh", "faceid", "inputboost";
-	sprd-freq = <1333 768 256 384 512 0xbacd 1333 1333>;
+	sprd-freq = <1333 1024 256 384 512 0xbacd 1333 1333>;
 };
 
 &pmic_fgu {
@@ -1067,4 +1067,9 @@
 #include "Tab_A8/AX6300-OT10-common.dtsi"
 /* Tab A8 code for SR-SL6215-01-233/SR-SL6215-01-208 by sunxunou at 2021/08/02 end*/
 #include "ums512-1h10-sec-common.dtsi"
-
+&gpu {
+	sprd,dvfs-scene-low = <1>;
+	sprd,dvfs-scene-medium = <2>;
+	sprd,dvfs-scene-high = <3>;
+	sprd,dvfs-scene-extreme = <4>;
+};
