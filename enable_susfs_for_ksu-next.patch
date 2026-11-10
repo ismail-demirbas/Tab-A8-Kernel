@@ -1,22 +1,16 @@
-diff --git a/Kbuild b/Kbuild
-index 77f5be0..ae70dfe 100644
---- a/Kbuild
-+++ b/Kbuild
-@@ -42,6 +42,10 @@ kernelsu-objs += supercall/supercall.o
- kernelsu-objs += feature/adb_root.o
- kernelsu-objs += feature/selinux_hide.o
+diff --git a/kernel/Kconfig b/kernel/Kconfig
+index 946966dc..56c78d27 100644
+--- a/kernel/Kconfig
++++ b/kernel/Kconfig
+@@ -2,7 +2,7 @@ menu "KernelSU"
  
-+ifeq ($(CONFIG_KSU_SUSFS),y)
-+kernelsu-objs += feature/susfs_glue.o
-+endif
-+
- ifdef KBUILD_EXTMOD
- ifeq ($(CONFIG_KSU_DISABLE_MANAGER),y)
- ccflags-y += -DCONFIG_KSU_DISABLE_MANAGER=1
-diff --git a/Kconfig b/Kconfig
-index 946966d..060d7b3 100644
---- a/Kconfig
-+++ b/Kconfig
+ config KSU
+ 	tristate "KernelSU function support"
+-	default y
++	default n
+ 	help
+ 	  Enable kernel-level root privileges on Android System.
+ 	  Requires CONFIG_KPROBES for kernel hooking support.
 @@ -72,4 +72,80 @@ config KSU_SYSCALL_TABLE_HOOK
  
  endchoice
@@ -98,11 +92,55 @@ index 946966d..060d7b3 100644
 +endmenu
 +
  endmenu
-diff --git a/feature/susfs_glue.c b/feature/susfs_glue.c
+diff --git a/kernel/hook/setuid_hook.c b/kernel/hook/setuid_hook.c
+index 3dddf937..11505454 100644
+--- a/kernel/hook/setuid_hook.c
++++ b/kernel/hook/setuid_hook.c
+@@ -25,6 +25,7 @@
+ #include "hook/hook_manager.h"
+ #include "feature/kernel_umount.h"
+ #include "compat/kernel_compat.h"
++#include "susfs_glue.h"
+ 
+ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+ {
+@@ -69,6 +70,10 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+ #endif
+     }
+ 
++#ifdef CONFIG_KSU_SUSFS
++    susfs_ksu_on_setuid(new_uid, ksu_is_allow_uid_for_current(new_uid));
++#endif
++
+     // Handle kernel umount
+     ksu_handle_umount(old_uid, new_uid);
+ 
+diff --git a/kernel/manager/pkg_observer.c b/kernel/manager/pkg_observer.c
+index ac385a49..e21cd5bf 100644
+--- a/kernel/manager/pkg_observer.c
++++ b/kernel/manager/pkg_observer.c
+@@ -182,7 +182,6 @@ static struct watch_dir g_adb_watch = { .path = "/data/adb",
+ 
+ int ksu_observer_init(void)
+ {
+-	int ret = 0;
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+ 	g = fsnotify_alloc_group(&ksu_ops, 0);
+@@ -192,7 +191,7 @@ int ksu_observer_init(void)
+ 	if (IS_ERR(g))
+ 		return PTR_ERR(g);
+ 
+-	ret = watch_one_dir(&g_watch);
++	watch_one_dir(&g_watch);
+ 	watch_one_dir(&g_adb_watch);
+ 	pr_info("observer init done\n");
+ 	return 0;
+diff --git a/kernel/feature/susfs_glue.c b/kernel/feature/susfs_glue.c
 new file mode 100644
-index 0000000..5dcec6a
+index 00000000..6e4fb36b
 --- /dev/null
-+++ b/feature/susfs_glue.c
++++ b/kernel/feature/susfs_glue.c
 @@ -0,0 +1,166 @@
 +#include <linux/init.h>
 +#include <linux/kernel.h>
@@ -191,7 +229,7 @@ index 0000000..5dcec6a
 +	u64 features;
 +
 +	if (current_uid().val != 0)
-+		return 0;
++		return -EPERM;
 +
 +	switch (cmd) {
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
@@ -270,34 +308,11 @@ index 0000000..5dcec6a
 +	return 0;
 +}
 +core_initcall(susfs_ksu_init);
-diff --git a/hook/setuid_hook.c b/hook/setuid_hook.c
-index 3cb0be8..f021793 100644
---- a/hook/setuid_hook.c
-+++ b/hook/setuid_hook.c
-@@ -12,6 +12,7 @@
- #include "hook/hook_manager.h"
- #include "feature/kernel_umount.h"
- #include "compat/kernel_compat.h"
-+#include "susfs_glue.h"
- 
- int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
- {
-@@ -37,6 +38,10 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
- #endif
-     }
- 
-+#ifdef CONFIG_KSU_SUSFS
-+    susfs_ksu_on_setuid(new_uid, ksu_is_allow_uid_for_current(new_uid));
-+#endif
-+
-     // Handle kernel umount
-     ksu_handle_umount(old_uid, new_uid);
- 
-diff --git a/include/susfs_glue.h b/include/susfs_glue.h
+diff --git a/kernel/include/susfs_glue.h b/kernel/include/susfs_glue.h
 new file mode 100644
-index 0000000..5aabccc
+index 00000000..5aabccc9
 --- /dev/null
-+++ b/include/susfs_glue.h
++++ b/kernel/include/susfs_glue.h
 @@ -0,0 +1,11 @@
 +#ifndef __KSU_SUSFS_GLUE_H
 +#define __KSU_SUSFS_GLUE_H
