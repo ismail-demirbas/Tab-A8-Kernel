@@ -132,12 +132,14 @@ err_free_dev:
 static int __init hall_init(void) {
     struct device_node * node = NULL;
     int ret = 0;
+    int gpio;
+    int irq;
+    int gpio_value;
+    unsigned long irq_flags;
     enum of_gpio_flags flags;
     hall_state = 0;
 
     LOG_INFO("Enter %s\n", __func__);
-
-    hall_data.curr_mode = HALL_FAR;
 
     /* pinctrl start */
     ret = platform_driver_register(&hall_driver);
@@ -159,11 +161,12 @@ static int __init hall_init(void) {
         LOG_INFO("can't find compatible node\n");
         return -1;
     }
-    hall_data.gpiopin = of_get_named_gpio_flags(node, "hall,nirq-gpio", 0, &flags);
-    if (!gpio_is_valid(hall_data.gpiopin)) {
-        LOG_INFO("TLMM gpio not found\n");
-        return -1;
+    gpio = of_get_named_gpio_flags(node, "hall,nirq-gpio", 0, &flags);
+    if (!gpio_is_valid(gpio)) {
+        LOG_INFO("TLMM gpio not found: %d\n", gpio);
+        return gpio < 0 ? gpio : -1;
     }
+    hall_data.gpiopin = gpio;
 
     LOG_INFO("hall_data.gpiopin is %d\n", hall_data.gpiopin);
 
@@ -174,17 +177,57 @@ static int __init hall_init(void) {
         return ret;
     }
 
-    gpio_direction_input(hall_data.gpiopin);
-    hall_data.irq = gpio_to_irq(hall_data.gpiopin);
-    if (hall_data.irq < 0) {
-        LOG_INFO("Unable to configure irq\n");
-        return -1;
+    ret = gpio_direction_input(hall_data.gpiopin);
+    if (ret < 0) {
+        LOG_INFO("Unable to set Hall GPIO input: %d\n", ret);
+        return ret;
     }
 
+    gpio_value = gpio_get_value_cansleep(hall_data.gpiopin);
+    if (gpio_value < 0) {
+        LOG_INFO("Unable to read initial Hall GPIO: %d\n",
+                 gpio_value);
+        return gpio_value;
+    }
+
+    if (gpio_value) {
+        hall_data.curr_mode = HALL_FAR;
+        irq_flags = IRQF_TRIGGER_LOW | IRQF_ONESHOT;
+    } else {
+        hall_data.curr_mode = HALL_NEAR;
+        irq_flags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
+    }
+
+    hall_state = !!hall_data.curr_mode;
+
+#ifndef HQ_FACTORY_BUILD
+    input_report_switch(
+        hall_data.dev,
+        SW_FLIP,
+        hall_data.curr_mode == HALL_NEAR
+    );
+    input_sync(hall_data.dev);
+#endif
+
+    irq = gpio_to_irq(hall_data.gpiopin);
+    if (irq < 0) {
+        LOG_INFO("Unable to configure irq: %d\n", irq);
+        return irq;
+    }
+    hall_data.irq = irq;
+
     spin_lock_init(&hall_data.spinlock);
-    ret = request_threaded_irq(hall_data.irq, NULL, hall_irq_func, IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "hall_irq", &hall_data);
-    if (!ret) {
-        enable_irq_wake(hall_data.irq);
+    ret = request_threaded_irq(hall_data.irq, NULL, hall_irq_func,
+                               irq_flags, "hall_irq", &hall_data);
+    if (ret) {
+        LOG_INFO("Unable to request Hall IRQ: %d\n", ret);
+        return ret;
+    }
+
+    ret = enable_irq_wake(hall_data.irq);
+    if (ret < 0) {
+        LOG_INFO("Unable to enable Hall IRQ wake: %d\n", ret);
+    } else {
         LOG_INFO("enable irq wake\n");
     }
 
