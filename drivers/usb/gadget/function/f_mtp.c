@@ -1205,23 +1205,8 @@ out:
 
 static int mtp_open(struct inode *ip, struct file *fp)
 {
-	int ret;
-
 	if (mtp_lock(&_mtp_dev->open_excl))
 		return -EBUSY;
-
-	/*
-	 * We must wait for mtp function is configured done, or it will be crash
-	 * when reading or writing.
-	 */
-	ret = wait_event_timeout(_mtp_dev->read_wq,
-				 _mtp_dev->state == STATE_READY,
-				 msecs_to_jiffies(1000));
-	if (ret == 0) {
-		pr_err("timed out waiting for open mtp\n");
-		mtp_unlock(&_mtp_dev->open_excl);
-		return -EBUSY;
-	}
 
 	/* clear any error condition */
 	if (_mtp_dev->state != STATE_OFFLINE)
